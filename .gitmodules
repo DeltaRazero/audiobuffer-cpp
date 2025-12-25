@@ -1,0 +1,3 @@
+[submodule "third-party/numio-cpp"]
+	path = third-party/numio-cpp
+	url = https://github.com/DeltaRazero/numio-cpp.git
