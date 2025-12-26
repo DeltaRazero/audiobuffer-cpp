@@ -5,14 +5,15 @@
 #include <cmath>
 #include <cstdlib>
 
-#include "./audio_buffer_interface.hpp"
-#include "./sample_descriptor.hpp"
-#include "./util.hpp"
+#include "../buffer/audio_buffer_interface.hpp"
+#include "../descriptor.hpp"
+
 #include "./macro.hpp"
+#include "./util.hpp"
 
 // *****************************************************************************
 
-namespace audiobuffer {
+namespace audiobuffer::internal {
 
 // *****************************************************************************
 
@@ -44,6 +45,8 @@ CopyArgs sanitize_copy_args(AudioBufferData& src_data, AudioBufferData& dst_data
 
   return copy_args;
 }
+
+// *****************************************************************************
 
 ///
 /// @brief Copies audio buffer data.
@@ -119,7 +122,7 @@ bool copy_audio_buffer_data(AudioBufferData& src, AudioBufferData& dst, CopyArgs
           constexpr auto SRC_BITS = SRC_DESCRIPTOR::BIT_DEPTH;
           constexpr auto DST_BITS = DST_DESCRIPTOR::BIT_DEPTH;
 
-          constexpr auto SHIFT_AMOUNT = util::constexpr_abs(DST_BITS - SRC_BITS);
+          constexpr auto SHIFT_AMOUNT = constexpr_abs(DST_BITS - SRC_BITS);
 
           // Bitshift left; cast to target type first, then shift.
           if constexpr (DST_BITS > SRC_BITS) {
@@ -136,7 +139,7 @@ bool copy_audio_buffer_data(AudioBufferData& src, AudioBufferData& dst, CopyArgs
         }
         // Sign conversion needed.
         else {
-          dst_channel[i_dst] = util::scaled_inv_2s_complement<SRC_SAMPLE_T, DST_SAMPLE_T>(src_channel[i_src]);
+          dst_channel[i_dst] = scaled_inv_2s_complement<SRC_SAMPLE_T, DST_SAMPLE_T>(src_channel[i_src]);
         }
       }
 
@@ -172,7 +175,7 @@ bool copy_audio_buffer_data(AudioBufferData& src, AudioBufferData& dst, CopyArgs
         &&
         (DST_DESCRIPTOR::TYPE == SampleType::INT || DST_DESCRIPTOR::TYPE == SampleType::UINT)
       ) {
-        auto value = util::clamp<SRC_SAMPLE_T>(src_channel[i_src], SRC_DESCRIPTOR::MIN, SRC_DESCRIPTOR::MAX);
+        auto value = clamp<SRC_SAMPLE_T>(src_channel[i_src], SRC_DESCRIPTOR::MIN, SRC_DESCRIPTOR::MAX);
         bool is_positive = value >= SRC_DESCRIPTOR::CENTER;
 
         if constexpr (DST_DESCRIPTOR::TYPE == SampleType::INT) {
@@ -213,4 +216,4 @@ bool copy_audio_buffer_data(AudioBufferData& src, AudioBufferData& dst, CopyArgs
 
 // *****************************************************************************
 
-} // namespace audiobuffer
+} // namespace audiobuffer::internal

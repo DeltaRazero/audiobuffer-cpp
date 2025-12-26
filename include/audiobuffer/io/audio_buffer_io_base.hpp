@@ -7,44 +7,14 @@
 #include <tuple>
 #include <memory>
 
-#include "./audio_buffer.hpp"
+#include "../buffer/audio_buffer_interface.hpp"
+#include "../buffer/audio_buffer.hpp"
 
-#include "../../third-party/numio-cpp/include/numio.hpp"
-
-// *****************************************************************************
-
-namespace audiobuffer {
+#include "./audio_buffer_io_interface.hpp"
 
 // *****************************************************************************
 
-class AudioBufferIOInterface
-{
-  public: virtual ~AudioBufferIOInterface() {};
-
-  // TODO: Maybe not include this in the interface?
-  virtual void set_stream(std::iostream& stream, AudioBufferInterface& audio_buffer)
-  =0;
-
-  virtual void set_io_buffer_size(std::size_t io_buffer_size)
-  =0;
-
-  virtual std::size_t seek(std::streamsize size)
-  =0;
-
-  ///
-  /// @brief Reads samples.
-  ///
-  /// @param size Amount of samples per channel.
-  /// @param offset Offset where to put in audio buffer object.
-  ///
-  /// @return Amount of samples read.
-  ///
-  virtual std::size_t read(std::size_t size=0, std::size_t offset=0)
-  =0;
-
-  virtual std::size_t write(std::size_t size=0, std::size_t offset=0)
-  =0;
-};
+namespace audiobuffer::io {
 
 // *****************************************************************************
 
@@ -77,7 +47,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
   public:
 
-  AudioBufferIOBase(std::iostream& stream, AudioBufferInterface& audio_buffer, std::size_t sizeof_io_sample)
+  AudioBufferIOBase(std::iostream& stream, ::audiobuffer::AudioBufferInterface& audio_buffer, std::size_t sizeof_io_sample)
   : _sizeof_io_sample(sizeof_io_sample)
   {
     this->_stream              = nullptr;
@@ -99,7 +69,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
   public:
 
   // TODO: Add note that changing channel count in source buffer after stream has been set is not supported.
-  void set_stream(std::iostream& stream, AudioBufferInterface& audio_buffer) override
+  void set_stream(std::iostream& stream, ::audiobuffer::AudioBufferInterface& audio_buffer) override
   {
     if (this->_stream) {
       this->_cleanup();
@@ -111,7 +81,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     // TODO: Check has_data();
     // TODO: Use get_format_id();
 
-    auto opt_buffer = AudioBuffer<T, ALLOCATOR_T>::from_reference(audio_buffer.get_data());
+    auto opt_buffer = ::audiobuffer::AudioBuffer<T, ALLOCATOR_T>::from_reference(audio_buffer.get_data());
 
     // if (audio_buffer.get_data()->format_id == SampleDescriptor<T>::FORMAT_ID) {
     if (opt_buffer.has_value()) {
@@ -119,7 +89,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
       this->_intermediate_audio_buffer_is_reference = true;
     }
     else {
-      this->_intermediate_audio_buffer = AudioBuffer<T, ALLOCATOR_T>(0, 0);
+      this->_intermediate_audio_buffer = ::audiobuffer::AudioBuffer<T, ALLOCATOR_T>(0, 0);
       this->_intermediate_audio_buffer_is_reference = false;
     }
 
@@ -432,112 +402,4 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
 // *****************************************************************************
 
-template<
-  typename T,
-  unsigned int BIT_DEPTH_V=SampleDescriptor<T>::BIT_DEPTH,
-  bool ALIGNED_V=false,
-  template<typename> class ALLOCATOR_T=std::allocator
->
-class IntegerAudioBufferIO : public AudioBufferIOBase<T, ALLOCATOR_T>
-{
-  static_assert(std::is_integral_v<T>, "Type must be an integer.");
-
-  protected:
-
-  using NUMIO_TYPE = numio::IntIO<T, BIT_DEPTH_V, ALIGNED_V>;
-  static constexpr bool SAME_DEPTH = BIT_DEPTH_V == SampleDescriptor<T>::BIT_DEPTH;
-
-  public:
-
-  IntegerAudioBufferIO(std::iostream& stream, AudioBufferInterface& audio_buffer)
-    : AudioBufferIOBase<T, ALLOCATOR_T>(stream, audio_buffer, NUMIO_TYPE::N_IO_BYTES)
-  {
-    // this->set_stream(stream, source_audio_buffer);
-  }
-
-  protected:
-
-  T _unpack1(std::size_t& io_buffer_offset) override
-  {
-    if constexpr (SAME_DEPTH)
-    {
-      return NUMIO_TYPE::unpack(this->_io_buffer, io_buffer_offset);
-    }
-    else
-    {
-      return util::scale_int<T, BIT_DEPTH_V, SampleDescriptor<T>::BIT_DEPTH>(
-        NUMIO_TYPE::unpack(this->_io_buffer, io_buffer_offset)
-      );
-    }
-  }
-
-  void _pack1(T& value, std::size_t& io_buffer_offset) override
-  {
-    if constexpr (SAME_DEPTH)
-    {
-      NUMIO_TYPE::pack(
-        value,
-        this->_io_buffer,
-        io_buffer_offset
-      );
-    }
-    else
-    {
-      NUMIO_TYPE::pack(
-        util::scale_int<T, SampleDescriptor<T>::BIT_DEPTH, BIT_DEPTH_V>(
-          value
-        ),
-        this->_io_buffer,
-        io_buffer_offset
-      );
-    }
-    return;
-  }
-};
-
-// *****************************************************************************
-
-template<
-  typename T,
-  unsigned int EXPONENT_DEPTH_V=SampleDescriptor<T>::EXPONENT_DEPTH,
-  unsigned int FRACTION_DEPTH_V=SampleDescriptor<T>::FRACTION_DEPTH,
-  bool ALIGNED_V=false,
-  template<typename> class ALLOCATOR_T=std::allocator
->
-class IEEEFloatAudioBufferIO : public AudioBufferIOBase<T, ALLOCATOR_T>
-{
-  static_assert(std::is_floating_point_v<T>, "Type must be an integer.");
-
-  protected:
-
-  using NUMIO_TYPE = numio::FloatIO<T, EXPONENT_DEPTH_V, FRACTION_DEPTH_V, ALIGNED_V>;
-
-  public:
-
-  IEEEFloatAudioBufferIO(std::iostream& stream, AudioBufferInterface& audio_buffer)
-    : AudioBufferIOBase<T, ALLOCATOR_T>(stream, audio_buffer, NUMIO_TYPE::N_IO_BYTES)
-  {
-    // this->set_stream(stream, source_audio_buffer);
-  }
-
-  protected:
-
-  T _unpack1(std::size_t& io_buffer_offset) override
-  {
-    return NUMIO_TYPE::unpack(this->_io_buffer, io_buffer_offset);
-  }
-
-  void _pack1(T& value, std::size_t& io_buffer_offset) override
-  {
-    NUMIO_TYPE::pack(
-      value,
-      this->_io_buffer,
-      io_buffer_offset
-    );
-    return;
-  }
-};
-
-// *****************************************************************************
-
-} // namespace audiobuffer
+} // namespace audiobuffer::io

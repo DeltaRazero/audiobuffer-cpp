@@ -6,8 +6,9 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include "../internal/macro.hpp"
+
 #include "./audio_buffer_base.hpp"
-#include "./macro.hpp"
 
 // *****************************************************************************
 
@@ -39,7 +40,7 @@ class StaticAudioBuffer : public AudioBufferBase<T>
   public:
 
   StaticAudioBuffer() :
-    _fixed_data(AudioBufferBase<T>::DESCRIPTOR::FORMAT_ID, false)
+    _fixed_data({ .format_id = AudioBufferBase<T>::DESCRIPTOR::FORMAT_ID, .resizable = false })
   {
     // Reference the auto-managed data to the data pointer of the base class.
     this->_data = &this->_fixed_data;

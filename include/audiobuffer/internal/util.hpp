@@ -6,7 +6,7 @@
 
 // *****************************************************************************
 
-namespace audiobuffer::util {
+namespace audiobuffer::internal {
 
 // *****************************************************************************
 
@@ -166,4 +166,4 @@ inline constexpr auto scale_int(T input) noexcept
 
 // *****************************************************************************
 
-} // namespace audiobuffer::utility
+} // namespace audiobuffer::internal

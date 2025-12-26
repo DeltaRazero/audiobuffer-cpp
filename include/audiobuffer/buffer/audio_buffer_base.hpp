@@ -5,10 +5,11 @@
 #include <cstdint>
 #include <cstdlib>
 
+#include "../internal/macro.hpp"
+#include "../internal/copy.hpp"
+#include "../descriptor.hpp"
+
 #include "./audio_buffer_interface.hpp"
-#include "./sample_descriptor.hpp"
-#include "./copy.hpp"
-#include "./macro.hpp"
 
 // *****************************************************************************
 
@@ -203,7 +204,7 @@ class AudioBufferBase : public AudioBufferInterface
       // Define preprocessor macro function for convenience
       #define FORMAT_CASE(__src_sample_t)\
       case (SampleDescriptor<__src_sample_t>::FORMAT_ID):\
-        is_copied = copy_audio_buffer_data<__src_sample_t, SAMPLE_T>(*src.get_data(), *this->_data, args);\
+        is_copied = ::audiobuffer::internal::copy_audio_buffer_data<__src_sample_t, SAMPLE_T>(*src.get_data(), *this->_data, args);\
         break;
       //#enddefine
       switch (src.get_data()->format_id)
@@ -239,7 +240,7 @@ class AudioBufferBase : public AudioBufferInterface
       // Define preprocessor macro function for convenience
       #define FORMAT_CASE(__dst_sample_t)\
       case (SampleDescriptor<__dst_sample_t>::FORMAT_ID):\
-        is_copied = copy_audio_buffer_data<SAMPLE_T, __dst_sample_t>(*this->_data, *dst.get_data(), args);\
+        is_copied = ::audiobuffer::internal::copy_audio_buffer_data<SAMPLE_T, __dst_sample_t>(*this->_data, *dst.get_data(), args);\
         break;
       //#enddefine
       switch (dst.get_data()->format_id)
