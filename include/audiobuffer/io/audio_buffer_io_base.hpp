@@ -38,12 +38,12 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
   // The input buffer from which we will read from or write to.
   AudioBufferInterface* _src_ab;
-  // We use this audio buffer to copy from/to the source audio buffer.
-  AudioBuffer<T, ALLOCATOR_T> _interm_ab;
-
   // We keep track of the last known sizes to ensure we don't overflow/underflow.
   channel_count_t _src_ab_channel_count;
   buffer_size_t   _src_ab_buffer_size;
+
+  // We use this audio buffer to copy from/to the source audio buffer.
+  AudioBuffer<T, ALLOCATOR_T> _interm_ab;
 
   // Buffer so we can read/write data in a large chunk for faster I/O performance.
   std::size_t _io_buffer_size;
@@ -55,6 +55,12 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
   public:
 
+  ///
+  /// @param stream The stream object, implementing `std::iostream`
+  /// @param audio_buffer The audio buffer to read to/write from.
+  /// @param io_buffer_size The size of the buffer used to buffer I/O operations.
+  /// @param sizeof_io_sample The size of a single sample in bytes.
+  ///
   AudioBufferIOBase(
     std::iostream& stream,
     ::audiobuffer::AudioBufferInterface& audio_buffer,
@@ -68,8 +74,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
     this->_io_buffer      = nullptr;
     this->_io_buffer_size = io_buffer_size;
-    // NOTE: `set_stream()` will enforce a minimum value for `io_buffer_size`.
-
+    // This will enforce a minimum value for `io+buffer_size`.
     this->set_stream(stream, audio_buffer);
   }
 
@@ -80,9 +85,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
   public:
 
-  // TODO: Make note in docstring that channel count updating does not work and will pad with zeros after set_stream.
-  // You must call set_stream() again to change it.
-  void set_stream(std::iostream& stream, ::audiobuffer::AudioBufferInterface& audio_buffer) override
+  void set_stream(std::iostream& stream, ::audiobuffer::AudioBufferInterface& audio_buffer) override final
   {
     // If we already had a stream set before, close and cleanup.
     if (this->_stream) {
@@ -113,7 +116,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     this->set_io_buffer_size(this->_io_buffer_size);
   }
 
-  void set_io_buffer_size(std::size_t io_buffer_size) override
+  void set_io_buffer_size(std::size_t io_buffer_size) override final
   {
     // Ensure minimum size to functionally operate.
     io_buffer_size = std::max(
@@ -145,9 +148,22 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
   protected:
 
+  ///
+  /// @brief Unpacks a single value.
+  ///
+  /// @param io_buffer_offset Offset of the packed data in the I/O buffer.
+  ///
+  /// @return The unpacked value.
+  ///
   virtual T _unpack1(std::size_t io_buffer_offset)
   =0;
 
+  ///
+  /// @brief Packs a single value.
+  ///
+  /// @param value The value to pack.
+  /// @param io_buffer_offset Offset of the packed data in the I/O buffer.
+  ///
   virtual void _pack1(T& value, std::size_t io_buffer_offset)
   =0;
 
@@ -158,7 +174,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     std::ios_base::seekdir direction=std::ios::beg,
     std::streamoff offset=0,
     std::ios_base::seekdir offset_direction=std::ios::beg
-  )
+  ) override final
   {
     if (!this->_stream) {
       return;
@@ -368,12 +384,21 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
   protected:
 
+  ///
+  /// @brief Checks whether the I/O stream and I/O audio buffer are available.
+  ///
   bool _is_io_available() const
   { return static_cast<bool>(this->_stream && this->_src_ab); }
 
+  ///
+  /// @brief Checks whether the I/O audio buffer can be read from/written to.
+  ///
   bool _is_src_ab_data_available() const
   { return static_cast<bool>(this->_src_ab_buffer_size && this->_src_ab_channel_count); }
 
+  ///
+  /// @brief Updates audio buffer metadata and intermediate buffer sizes.
+  ///
   void _update_ab_sizes()
   {
     if (!this->_is_io_available()) {

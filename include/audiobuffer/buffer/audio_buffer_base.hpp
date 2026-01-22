@@ -17,6 +17,11 @@ namespace audiobuffer {
 
 // *****************************************************************************
 
+///
+/// @brief Base class for implementing audio buffers.
+///
+/// @tparam T Storage type for samples in the audio buffer.
+///
 template <typename T>
 class AudioBufferBase : public AudioBufferInterface
 {
@@ -61,7 +66,7 @@ class AudioBufferBase : public AudioBufferInterface
 
   public:
 
-  bool has_data() const noexcept override
+  bool has_data() const noexcept override final
   {
     if (!this->_data) {
       return false;
@@ -69,22 +74,22 @@ class AudioBufferBase : public AudioBufferInterface
     return static_cast<bool>(this->_data->buffer) && static_cast<bool>(this->_data->channels);
   }
 
-  AudioBufferData* get_data() const noexcept override
+  AudioBufferData* get_data() const noexcept override final
   { return this->_data; }
 
-  format_id_t get_format_id() const noexcept override
+  format_id_t get_format_id() const noexcept override final
   { return this->has_data() ? this->_data->format_id : 0; }
 
-  buffer_size_t get_buffer_size() const noexcept override
+  buffer_size_t get_buffer_size() const noexcept override final
   { return this->has_data() ? this->_data->buffer_size : 0; }
 
-  channel_count_t get_channel_count() const noexcept override
+  channel_count_t get_channel_count() const noexcept override final
   { return this->has_data() ? this->_data->channel_count : 0; }
 
-  bool is_reference() const noexcept override
+  bool is_reference() const noexcept override final
   { return !this->_is_managed; }
 
-  void clear() noexcept override
+  void clear() noexcept override final
   {
     for (channel_count_t c=0; c<this->get_channel_count(); c++) {
       auto channel = this->get_channel(c);
@@ -95,7 +100,7 @@ class AudioBufferBase : public AudioBufferInterface
     return;
   }
 
-  bool duplicate_channel(channel_count_t src_channel_index, channel_count_t dst_channel_index) noexcept override
+  bool duplicate_channel(channel_count_t src_channel_index, channel_count_t dst_channel_index) noexcept override final
   {
     // Do nothing if the channels are the same
     if (src_channel_index == dst_channel_index) {
@@ -116,7 +121,7 @@ class AudioBufferBase : public AudioBufferInterface
     return true;
   }
 
-  bool copy_from(AudioBufferInterface* src, CopyArgs args=COPY_ARGS_DEFAULT) audiobuffer__noexcept override
+  bool copy_from(AudioBufferInterface* src, CopyArgs args=COPY_ARGS_DEFAULT) audiobuffer__noexcept override final
   {
     // Check if both buffers point to valid audio buffer data instances.
     if (!src) {
@@ -138,7 +143,7 @@ class AudioBufferBase : public AudioBufferInterface
     return true;
   }
 
-  bool copy_to(AudioBufferInterface* dst, CopyArgs args=COPY_ARGS_DEFAULT) audiobuffer__noexcept override
+  bool copy_to(AudioBufferInterface* dst, CopyArgs args=COPY_ARGS_DEFAULT) audiobuffer__noexcept override final
   {
     // Check if both buffers point to valid audio buffer data instances.
     if (!dst) {

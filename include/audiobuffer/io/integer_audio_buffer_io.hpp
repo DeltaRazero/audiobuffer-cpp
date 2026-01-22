@@ -17,6 +17,15 @@ namespace audiobuffer::io {
 
 // *****************************************************************************
 
+///
+/// @brief Audio buffer I/O stream for integer data.
+///
+/// @tparam T Integer storage sample type.
+/// @tparam BIT_DEPTH_V Amount of bits of the integer, defaults to the bit depth
+///   of `T`.
+/// @tparam ALIGNED_V Whether the data is byte-aligned, defaults to `false`.
+/// @tparam ALLOCATOR_T Allocator class, defaults to `std::allocator`.
+///
 template<
   typename T,
   unsigned int BIT_DEPTH_V=SampleDescriptor<T>::BIT_DEPTH,
@@ -44,7 +53,7 @@ class IntegerAudioBufferIO : public AudioBufferIOBase<T, ALLOCATOR_T>
 
   protected:
 
-  T _unpack1(std::size_t io_buffer_offset) override
+  T _unpack1(std::size_t io_buffer_offset) override final
   {
     if constexpr (SAME_DEPTH) {
       return NUMIO_TYPE::unpack(this->_io_buffer, io_buffer_offset);
@@ -56,7 +65,7 @@ class IntegerAudioBufferIO : public AudioBufferIOBase<T, ALLOCATOR_T>
     }
   }
 
-  void _pack1(T& value, std::size_t io_buffer_offset) override
+  void _pack1(T& value, std::size_t io_buffer_offset) override final
   {
     if constexpr (SAME_DEPTH)
     {

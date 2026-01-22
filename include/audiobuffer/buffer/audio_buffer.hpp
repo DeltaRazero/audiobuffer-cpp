@@ -288,7 +288,7 @@ class AudioBuffer : public AudioBufferBase<T>
 
   public:
 
-  bool resize(buffer_size_t buffer_size, channel_count_t channel_count=0) audiobuffer__noexcept
+  bool resize(buffer_size_t buffer_size, channel_count_t channel_count=0) audiobuffer__noexcept override final
   {
     // If no data set, presumably from constructor.
     if (!this->_data) {

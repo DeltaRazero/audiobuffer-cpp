@@ -77,7 +77,7 @@ class StaticAudioBuffer : public AudioBufferBase<T>
 
   // :: INTERFACE METHODS :: //
 
-  bool resize(buffer_size_t buffer_size, channel_count_t channel_count=0) audiobuffer__noexcept
+  bool resize(buffer_size_t buffer_size, channel_count_t channel_count=0) audiobuffer__noexcept override final
   {
     // Fixed-size audio buffers can not be resized.
     #if (audiobuffer__disable_exceptions)

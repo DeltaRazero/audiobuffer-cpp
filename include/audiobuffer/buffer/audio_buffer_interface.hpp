@@ -41,6 +41,9 @@ static const CopyArgs COPY_ARGS_DEFAULT = CopyArgs();
 
 // *****************************************************************************
 
+///
+/// @brief Common interface for audio buffers.
+///
 class AudioBufferInterface
 {
   public: virtual ~AudioBufferInterface() {};

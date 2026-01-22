@@ -15,17 +15,43 @@ namespace audiobuffer::io {
 
 // *****************************************************************************
 
+///
+/// @brief Common interface for audio buffer I/O streams.
+///
 class AudioBufferIOInterface
 {
   public: virtual ~AudioBufferIOInterface() {};
 
-  // TODO: Maybe not include this in the interface?
+  ///
+  /// @brief Sets the stream to read to/write from.
+  ///
+  /// @param stream The stream object, implementing `std::iostream`.
+  /// @param audio_buffer The audio buffer to read to/write from.
+  ///
+  /// @warning Channel count read from/written to the stream will not be updated
+  ///   when the I/O audio buffer is reconfigured. Remaining channels will be
+  ///   padded with DC center values. If you want to change the channel count,
+  ///   you will need to call `set_stream()` again.
+  ///
   virtual void set_stream(std::iostream& stream, ::audiobuffer::AudioBufferInterface& audio_buffer)
   =0;
 
+  ///
+  /// @brief Sets the size of the buffer used to buffer I/O operations.
+  ///
+  /// @param io_buffer_size Size of the buffer in bytes.
+  ///
   virtual void set_io_buffer_size(std::size_t io_buffer_size)
   =0;
 
+  ///
+  /// @brief Changes the current read/write position.
+  ///
+  /// @param samples Amount of samples per channel.
+  /// @param direction Seek direction.
+  /// @param offset Raw offset in the stream.
+  /// @param offset_direction Seek direction of the raw offset.
+  ///
   virtual void seek(
     std::streampos samples,
     std::ios_base::seekdir direction=std::ios::beg,
@@ -35,18 +61,30 @@ class AudioBufferIOInterface
   =0;
 
   ///
-  /// @brief Reads samples.
+  /// @brief Reads samples to the I/O audio buffer.
   ///
-  /// @param size Amount of samples per channel. Will be limited to the size of
-  ///   the input audio buffer if the value is larger.
-  /// @param offset Offset where to put in audio buffer object. Will be limited
-  ///   to the max size minus the size if larger.
+  /// @param size Amount of samples per channel.
+  /// @param offset Offset where to write the samples to in the I/O audio buffer.
   ///
   /// @return Amount of samples read.
+  ///
+  /// @warning `size` and `offset` will be limited to the size and offset of the
+  ///   the I/O audio buffer if the values are larger.
   ///
   virtual std::size_t read(std::size_t size=0, std::size_t offset=0)
   =0;
 
+  ///
+  /// @brief Write samples from the I/O audio buffer.
+  ///
+  /// @param size Amount of samples per channel.
+  /// @param offset Offset where to read the samples from in the I/O audio buffer.
+  ///
+  /// @return Amount of samples written.
+  ///
+  /// @warning `size` and `offset` will be limited to the size and offset of the
+  ///   the I/O audio buffer if the values are larger.
+  ///
   virtual std::size_t write(std::size_t size=0, std::size_t offset=0)
   =0;
 };
