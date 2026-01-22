@@ -27,36 +27,48 @@ namespace audiobuffer::io {
 template <typename T, template<typename> class ALLOCATOR_T=std::allocator>
 class AudioBufferIOBase : public AudioBufferIOInterface
 {
+  public:
+
+  static constexpr std::size_t DEFAULT_IO_BUFFER_SIZE = 1024 * 8192;
+
   protected:
 
+  // Size of a single sample when reading/writing from the I/O buffer.
+  const std::size_t _sizeof_io_sample;
+
   // The input buffer from which we will read from or write to.
-  AudioBufferInterface* _source_audio_buffer;
+  AudioBufferInterface* _src_ab;
+  // We use this audio buffer to copy from/to the source audio buffer.
+  AudioBuffer<T, ALLOCATOR_T> _interm_ab;
 
-  // The buffer we'll use to convert between...
-  AudioBuffer<T, ALLOCATOR_T> _intermediate_audio_buffer;
-  bool _intermediate_audio_buffer_is_reference;
+  // We keep track of the last known sizes to ensure we don't overflow/underflow.
+  channel_count_t _src_ab_channel_count;
+  buffer_size_t   _src_ab_buffer_size;
 
+  // Buffer so we can read/write data in a large chunk for faster I/O performance.
   std::size_t _io_buffer_size;
   char* _io_buffer;
 
-  // Size of a single sample when reading/writing from the I/O buffer.
-  // TODO: Make this a const.
-  const std::size_t _sizeof_io_sample;
-
-  std::iostream* _stream;
+  // The actual stream we read/write to.
+  std::iostream*  _stream;
+  channel_count_t _stream_channel_count;
 
   public:
 
-  AudioBufferIOBase(std::iostream& stream, ::audiobuffer::AudioBufferInterface& audio_buffer, std::size_t sizeof_io_sample)
+  AudioBufferIOBase(
+    std::iostream& stream,
+    ::audiobuffer::AudioBufferInterface& audio_buffer,
+    std::size_t io_buffer_size,
+    std::size_t sizeof_io_sample
+  )
   : _sizeof_io_sample(sizeof_io_sample)
   {
-    this->_stream              = nullptr;
-    this->_source_audio_buffer = nullptr;
+    this->_stream = nullptr;
+    this->_src_ab = nullptr;
 
-    this->_io_buffer = nullptr;
-    this->_io_buffer_size = 1024 * 8192;
-
-    this->_intermediate_audio_buffer_is_reference = false;
+    this->_io_buffer      = nullptr;
+    this->_io_buffer_size = io_buffer_size;
+    // NOTE: `set_stream()` will enforce a minimum value for `io_buffer_size`.
 
     this->set_stream(stream, audio_buffer);
   }
@@ -68,48 +80,58 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
   public:
 
-  // TODO: Add note that changing channel count in source buffer after stream has been set is not supported.
+  // TODO: Make note in docstring that channel count updating does not work and will pad with zeros after set_stream.
+  // You must call set_stream() again to change it.
   void set_stream(std::iostream& stream, ::audiobuffer::AudioBufferInterface& audio_buffer) override
   {
+    // If we already had a stream set before, close and cleanup.
     if (this->_stream) {
       this->_cleanup();
     }
 
     this->_stream = &stream;
-    this->_source_audio_buffer = &audio_buffer;
+    this->_src_ab = &audio_buffer;
 
-    // TODO: Check has_data();
-    // TODO: Use get_format_id();
-
-    auto opt_buffer = ::audiobuffer::AudioBuffer<T, ALLOCATOR_T>::from_reference(audio_buffer.get_data());
-
-    // if (audio_buffer.get_data()->format_id == SampleDescriptor<T>::FORMAT_ID) {
-    if (opt_buffer.has_value()) {
-      this->_intermediate_audio_buffer = std::move(opt_buffer).value();
-      this->_intermediate_audio_buffer_is_reference = true;
-    }
-    else {
-      this->_intermediate_audio_buffer = ::audiobuffer::AudioBuffer<T, ALLOCATOR_T>(0, 0);
-      this->_intermediate_audio_buffer_is_reference = false;
+    // If the input audio buffer has no data, set variables to these values to
+    // skip read/write operations.
+    if (!audio_buffer.has_data()) {
+      this->_stream_channel_count = 0;
+      this->_src_ab = nullptr;
+      return;
     }
 
-    // Ensure I/O buffer available.
+    // Try to get a reference if the intermediate type is of the same type as
+    // the user input type, else create a new intermediate buffer.
+    auto ab_ref = ::audiobuffer::AudioBuffer<T, ALLOCATOR_T>::from_reference(audio_buffer.get_data());
+    this->_interm_ab = ab_ref.has_value()
+      ? std::move(ab_ref).value()
+      : ::audiobuffer::AudioBuffer<T, ALLOCATOR_T>(0, 0);
+
+    this->_stream_channel_count = audio_buffer.get_channel_count();
+
+    // Ensure that the I/O buffer is available.
     this->set_io_buffer_size(this->_io_buffer_size);
-
-    // TODO: This is temporary.
-    // this->set_io_buffer_size(source_audio_buffer->get_buffer_size() * source_audio_buffer->get_channel_count() * this->_sizeof_io_sample);
   }
 
   void set_io_buffer_size(std::size_t io_buffer_size) override
   {
-    if (this->_io_buffer == nullptr) {
-      this->_io_buffer_size = io_buffer_size;
-    }
-    else if (this->_io_buffer_size == io_buffer_size) {
+    // Ensure minimum size to functionally operate.
+    io_buffer_size = std::max(
+      io_buffer_size,
+      this->_sizeof_io_sample * this->_src_ab_channel_count
+    );
+    // For safety, enforce a maximum size.
+    io_buffer_size = std::min(
+      io_buffer_size,
+      static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())
+    );
+    // If sizes are the same and the I/O buffer is already located, no further
+    // actions needed.
+    if (this->_io_buffer_size == io_buffer_size && this->_io_buffer) {
       return;
     }
-    this->_cleanup();
 
+    this->_cleanup();
     {
       ALLOCATOR_T<char> io_buffer_alloc;
       using io_buffer_alloc_t = std::allocator_traits<decltype(io_buffer_alloc)>;
@@ -117,91 +139,68 @@ class AudioBufferIOBase : public AudioBufferIOInterface
       this->_io_buffer      = io_buffer_alloc_t::allocate(io_buffer_alloc, io_buffer_size);
       this->_io_buffer_size = io_buffer_size;
     }
+    this->_update_ab_sizes();
+    return;
+  }
 
-    if (this->_intermediate_audio_buffer_is_reference) {
+  protected:
+
+  virtual T _unpack1(std::size_t io_buffer_offset)
+  =0;
+
+  virtual void _pack1(T& value, std::size_t io_buffer_offset)
+  =0;
+
+  public:
+
+  void seek(
+    std::streampos samples,
+    std::ios_base::seekdir direction=std::ios::beg,
+    std::streamoff offset=0,
+    std::ios_base::seekdir offset_direction=std::ios::beg
+  )
+  {
+    if (!this->_stream) {
       return;
     }
+    this->_update_ab_sizes();
 
-    auto channel_count = this->_source_audio_buffer->get_channel_count();
-    auto divider = channel_count * this->_sizeof_io_sample;
-
-    // Prevent division by zero if no channel count.
-    if (!divider) {
-      divider = 1;
-    }
-
-    // TODO: Limit IO buffer size to the size+channel_count of the source buffer?
-
-    this->_intermediate_audio_buffer.resize(
-      std::min<buffer_size_t>(
-        io_buffer_size / divider,
-        // TODO: Make comment that we enforce a maximum for the intermediate audio buffer.
-        (1024*16) / divider
-      ),
-      channel_count
-    );
+    // Offset seek.
+    this->_stream->seekg(offset, offset_direction);
+    this->_stream->seekp(offset, offset_direction);
+    // Sample seek.
+    this->_stream->seekg(samples * this->_src_ab_buffer_size * this->_src_ab_channel_count, direction);
+    this->_stream->seekp(samples * this->_src_ab_buffer_size * this->_src_ab_channel_count, direction);
 
     return;
   }
 
-  std::size_t seek(std::streamsize size) override
-  {
-    if (!this->_stream) {
-      return 0;
-    }
-
-    // TODO: Calc position delta?
-    // auto a = this->_stream->tellg
-
-    // TODO: Null check?
-    auto channel_count = this->_intermediate_audio_buffer_is_reference
-      ? this->_source_audio_buffer->get_channel_count()
-      : this->_intermediate_audio_buffer.get_channel_count();
-
-    this->_stream->seekg(
-      size * this->_sizeof_io_sample * channel_count,
-      std::ios_base::cur
-    );
-
-    return size;
-  }
-
   std::size_t read(std::size_t size=0, std::size_t offset=0) override
   {
-    // TODO: Make method to check if stuff is set.
-    if (!(this->_stream && this->_source_audio_buffer)) {
+    if (!(this->_is_io_available() && this->_is_src_ab_data_available())) {
       return 0;
     }
 
-    // TODO: Check if stream is readable?
-    // TODO: Method to check if buffer size is set.
-
-    std::tie(size, offset) = this->_sanitize_io_params(size, offset);
-    // If size is still 0, we don't do anything.
+    std::tie(size, offset) = this->_sanitize_size_params(size, offset);
     if (size == 0) {
       return 0;
     }
+    this->_update_ab_sizes();
 
     CopyArgs copy_args;
 
-    channel_count_t channel_count = this->_intermediate_audio_buffer.get_channel_count();
-    // Cache value to speed up performance.
-    auto io_divider = channel_count * this->_sizeof_io_sample;
+    auto io_divider = this->_stream_channel_count * this->_sizeof_io_sample;
     // Whole division and back to get the amount of bytes to fill the I/O buffer
     // so no samples or channels are read incompletely.
     std::size_t amount_bytes_per_read = this->_io_buffer_size / io_divider * io_divider;
     std::size_t samples_per_read      = amount_bytes_per_read / io_divider;
 
-    std::size_t amount_bytes_read;
-
     buffer_size_t   i;
     channel_count_t c;
-
-    // TODO: Copy comment.
+    // When using a referenced intermediate audio buffer, we can just use offsets.
     buffer_size_t ref_offset = 0;
 
     bool eof = false;
-
     std::size_t current_sample  = 0;
     std::size_t current_io_byte = 0;
     while (current_sample < size)
@@ -215,14 +214,14 @@ class AudioBufferIOBase : public AudioBufferIOInterface
       this->_stream->read(this->_io_buffer, amount_bytes_per_read);
       current_io_byte = 0;
       // If we hit unexpected EOF.
-      amount_bytes_read = this->_stream->gcount();
+      std::size_t amount_bytes_read = this->_stream->gcount();
       if (amount_bytes_read != amount_bytes_per_read) {
         eof = true;
         // Process what we still have read.
         samples_per_read = amount_bytes_read / io_divider;
       }
 
-      std::size_t intermediate_size   = this->_intermediate_audio_buffer.get_buffer_size();
+      std::size_t intermediate_size   = this->_interm_ab.get_buffer_size();
       std::size_t intermediate_passes = samples_per_read / intermediate_size;
       std::size_t intermediate_mod    = samples_per_read % intermediate_size;
       if (intermediate_mod) {
@@ -235,22 +234,35 @@ class AudioBufferIOBase : public AudioBufferIOInterface
         }
 
         // Process data as interleaved samples.
-        for (i=ref_offset; i<intermediate_size+ref_offset; i++) {
-          for (c=0; c<channel_count; c++) {
-            this->_intermediate_audio_buffer[c][i] = this->_unpack1(current_io_byte);
-            current_io_byte += this->_sizeof_io_sample;
+        for (c=0; c<this->_src_ab_channel_count; c++)
+        {
+          auto channel = this->_interm_ab[c];
+
+          // If channel count was changed by the user between read calls, fill
+          // with center values.
+          if (c >= this->_stream_channel_count) {
+            for (i=0; i<intermediate_size; i++) {
+              channel[ref_offset+i] = SampleDescriptor<T>::CENTER;
+            }
+            continue;
+          }
+
+          std::size_t io_byte_offset = current_io_byte + (this->_sizeof_io_sample * c);
+          for (i=0; i<intermediate_size; i++) {
+            channel[ref_offset+i] = this->_unpack1( io_byte_offset + (i * io_divider) );
           }
         }
+        current_io_byte += samples_per_read * io_divider;
 
-        if (!this->_intermediate_audio_buffer_is_reference) {
+        if (!this->_interm_ab.is_reference()) {
           // Copy the intermediate data to the source audio buffer.
           copy_args.size       = intermediate_size;
           copy_args.dst_offset = current_sample;
-          this->_intermediate_audio_buffer.copy_to(this->_source_audio_buffer, copy_args);
+          this->_interm_ab.copy_to(this->_src_ab, copy_args);
         }
 
         current_sample += intermediate_size;
-        ref_offset = this->_intermediate_audio_buffer_is_reference
+        ref_offset = this->_interm_ab.is_reference()
           ? current_sample
           : 0;
       }
@@ -266,35 +278,27 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
   std::size_t write(std::size_t size=0, std::size_t offset=0) override
   {
-    // TODO: Make method to check if stuff is set.
-    if (!(this->_stream && this->_source_audio_buffer)) {
+    if (!(this->_is_io_available() && this->_is_src_ab_data_available())) {
       return 0;
     }
 
-    // TODO: Check if stream is writable?
-
-    std::tie(size, offset) = this->_sanitize_io_params(size, offset);
-    // If size is still 0, we don't do anything.
+    std::tie(size, offset) = this->_sanitize_size_params(size, offset);
     if (size == 0) {
       return 0;
     }
+    this->_update_ab_sizes();
 
     CopyArgs copy_args;
 
-    channel_count_t channel_count = this->_intermediate_audio_buffer.get_channel_count();
-    // Cache value to speed up performance.
-    auto io_divider = channel_count * this->_sizeof_io_sample;
+    auto io_divider = this->_stream_channel_count * this->_sizeof_io_sample;
     // Whole division and back to get the amount of bytes to fill the I/O buffer
     // so no samples or channels are written incompletely.
     std::size_t amount_bytes_per_write = this->_io_buffer_size  / io_divider * io_divider;
     std::size_t samples_per_write      = amount_bytes_per_write / io_divider;
 
-    // TODO: Necessary to check if we've written successfully?
-
     buffer_size_t   i;
     channel_count_t c;
-
-    // If we can use the source audio buffer directly.
+    // When using a referenced intermediate audio buffer, we can just use offsets.
     buffer_size_t ref_offset = 0;
 
     std::size_t current_sample  = 0;
@@ -306,7 +310,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
         amount_bytes_per_write = samples_per_write * io_divider;
       }
 
-      std::size_t intermediate_size   = this->_intermediate_audio_buffer.get_buffer_size();
+      std::size_t intermediate_size   = this->_interm_ab.get_buffer_size();
       std::size_t intermediate_passes = samples_per_write / intermediate_size;
       std::size_t intermediate_mod    = samples_per_write % intermediate_size;
       if (intermediate_mod) {
@@ -320,23 +324,37 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
         // If we can access the source audio buffer directly, no copy operations
         // are needed.
-        if (!this->_intermediate_audio_buffer_is_reference) {
+        if (!this->_interm_ab.is_reference()) {
           // Copy the intermediate data from the source audio buffer.
           copy_args.size       = intermediate_size;
           copy_args.src_offset = current_sample;
-          this->_intermediate_audio_buffer.copy_from(this->_source_audio_buffer, copy_args);
+          this->_interm_ab.copy_from(this->_src_ab, copy_args);
         }
 
         // Process data as interleaved samples.
-        for (i=0+ref_offset; i<intermediate_size+ref_offset; i++) {
-          for (c=0; c<channel_count; c++) {
-            this->_pack1(this->_intermediate_audio_buffer[c][i], current_io_byte);
-            current_io_byte += this->_sizeof_io_sample;
+        for (c=0; c<this->_stream_channel_count; c++)
+        {
+          std::size_t io_byte_offset = current_io_byte + (this->_sizeof_io_sample * c);
+
+          // If channel count was changed by the user between write calls, fill
+          // with center values.
+          if (c >= this->_src_ab_channel_count) {
+            static auto center = SampleDescriptor<T>::CENTER;
+            for (i=0; i<intermediate_size; i++) {
+              this->_pack1(center, io_byte_offset + (i * io_divider));
+            }
+            continue;
+          }
+
+          auto channel = this->_interm_ab[c];
+          for (i=0; i<intermediate_size; i++) {
+            this->_pack1(channel[ref_offset+i], io_byte_offset + (i * io_divider));
           }
         }
+        current_io_byte += samples_per_write * io_divider;
 
         current_sample += intermediate_size;
-        ref_offset = this->_intermediate_audio_buffer_is_reference
+        ref_offset = this->_interm_ab.is_reference()
           ? current_sample
           : 0;
       }
@@ -351,36 +369,55 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
   protected:
 
-  virtual T _unpack1(std::size_t& io_buffer_offset)
-  =0;
+  bool _is_io_available() const
+  { return static_cast<bool>(this->_stream && this->_src_ab); }
 
-  virtual void _pack1(T& value, std::size_t& io_buffer_offset)
-  =0;
+  bool _is_src_ab_data_available() const
+  { return static_cast<bool>(this->_src_ab_buffer_size && this->_src_ab_channel_count); }
 
-  protected:
-
-  std::tuple<std::size_t, std::size_t> _sanitize_io_params(std::size_t size, std::size_t offset)
+  void _update_ab_sizes()
   {
-    // TODO: If size is bigger than source size, calculate the offset where copying should start from.
-    // TODO: Maybe also use f.seek() to seek the offsets?
-
-    auto source_size = this->_source_audio_buffer->get_buffer_size();
-
-    // Full buffer size.
-    if (size == 0) {
-      size = source_size;
-    }
-    // Ensure size and offset within bounds.
-    if (size + offset > source_size) {
-      if (offset > source_size) {
-        offset -= source_size;
-      }
-      size = source_size - offset;
+    if (!this->_is_io_available()) {
+      this->_src_ab_channel_count = 0;
+      this->_src_ab_buffer_size   = 0;
     }
 
-    return std::make_tuple(size, offset);
+    auto channel_count = this->_src_ab->get_channel_count();
+    auto buffer_size   = this->_src_ab->get_buffer_size();
+    // No changes needed.
+    if (this->_src_ab_channel_count == channel_count && this->_src_ab_buffer_size == buffer_size) {
+      return;
+    }
+
+    this->_src_ab_channel_count = channel_count;
+    this->_src_ab_buffer_size   = buffer_size;
+
+    // No resizing needed if the intermediate audio buffer is a reference.
+    if (this->_interm_ab.is_reference()) {
+      return;
+    }
+
+    auto divider = channel_count * this->_sizeof_io_sample;
+    // Prevent division by zero if no channel count.
+    if (!divider) {
+      divider = 1;
+    }
+    // Enforce a maximum intermediate audio buffer size.
+    std::size_t interm_ab_size = std::min(
+      this->_io_buffer_size / divider,
+      (1024*16) / divider
+    );
+    this->_interm_ab.resize(
+      static_cast<buffer_size_t>(interm_ab_size),
+      channel_count
+    );
+
+    return;
   }
 
+  ///
+  /// @brief Cleans up the I/O buffer and the intermediate audio buffer.
+  ///
   void _cleanup()
   {
     if (this->_io_buffer) {
@@ -391,11 +428,37 @@ class AudioBufferIOBase : public AudioBufferIOInterface
       this->_io_buffer = nullptr;
     }
     // Cleanup dynamically allocated memory in the intermediate audio buffer.
-    if (!this->_intermediate_audio_buffer_is_reference) {
-      this->_intermediate_audio_buffer.resize(0, 0);
+    if (!this->_interm_ab.is_reference()) {
+      this->_interm_ab.resize(0, 0);
+    }
+    return;
+  }
+
+  ///
+  /// @brief Sanitizes size parameters of I/O operations.
+  ///
+  /// @param size Amount of samples to read/write.
+  /// @param offset Offset in the audio buffer to read from/write to.
+  ///
+  /// @return Tuple with sanitized size and offset values.
+  ///
+  std::tuple<std::size_t, std::size_t> _sanitize_size_params(std::size_t size, std::size_t offset)
+  {
+    // Always check that we have up-to-date metadata.
+    this->_update_ab_sizes();
+
+    if (!this->_src_ab_buffer_size || offset >= this->_src_ab_buffer_size) {
+      return std::make_tuple(0, 0);
+    }
+    // Full buffer size.
+    if (size == 0) {
+      size = this->_src_ab_buffer_size;
+    }
+    if (size + offset > this->_src_ab_buffer_size) {
+      size = this->_src_ab_buffer_size - offset;
     }
 
-    return;
+    return std::make_tuple(size, offset);
   }
 
 };

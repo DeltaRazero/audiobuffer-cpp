@@ -25,7 +25,7 @@ template<
 >
 class IntegerAudioBufferIO : public AudioBufferIOBase<T, ALLOCATOR_T>
 {
-  static_assert(std::is_integral_v<T>, "Type must be an integer.");
+  static_assert(std::is_integral_v<T>, "Type must be integer.");
 
   protected:
 
@@ -34,29 +34,29 @@ class IntegerAudioBufferIO : public AudioBufferIOBase<T, ALLOCATOR_T>
 
   public:
 
-  IntegerAudioBufferIO(std::iostream& stream, ::audiobuffer::AudioBufferInterface& audio_buffer)
-    : AudioBufferIOBase<T, ALLOCATOR_T>(stream, audio_buffer, NUMIO_TYPE::N_IO_BYTES)
-  {
-    // this->set_stream(stream, source_audio_buffer);
-  }
+  IntegerAudioBufferIO(
+    std::iostream& stream,
+    ::audiobuffer::AudioBufferInterface& audio_buffer,
+    std::size_t io_buffer_size=IntegerAudioBufferIO::DEFAULT_IO_BUFFER_SIZE
+  )
+    : AudioBufferIOBase<T, ALLOCATOR_T>(stream, audio_buffer, io_buffer_size, NUMIO_TYPE::N_IO_BYTES)
+  {}
 
   protected:
 
-  T _unpack1(std::size_t& io_buffer_offset) override
+  T _unpack1(std::size_t io_buffer_offset) override
   {
-    if constexpr (SAME_DEPTH)
-    {
+    if constexpr (SAME_DEPTH) {
       return NUMIO_TYPE::unpack(this->_io_buffer, io_buffer_offset);
     }
-    else
-    {
+    else {
       return ::audiobuffer::internal::scale_int<T, BIT_DEPTH_V, SampleDescriptor<T>::BIT_DEPTH>(
         NUMIO_TYPE::unpack(this->_io_buffer, io_buffer_offset)
       );
     }
   }
 
-  void _pack1(T& value, std::size_t& io_buffer_offset) override
+  void _pack1(T& value, std::size_t io_buffer_offset) override
   {
     if constexpr (SAME_DEPTH)
     {
