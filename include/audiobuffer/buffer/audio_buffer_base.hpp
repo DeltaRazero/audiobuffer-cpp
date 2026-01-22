@@ -33,6 +33,10 @@ class AudioBufferBase : public AudioBufferInterface
 
   protected:
 
+  // Whether this instance is responsible for managing the memory of the data
+  // struct.
+  bool _is_managed;
+
   AudioBufferData* _data;
 
   // :: OPERATORS :: //
@@ -76,6 +80,9 @@ class AudioBufferBase : public AudioBufferInterface
 
   channel_count_t get_channel_count() const noexcept override
   { return this->has_data() ? this->_data->channel_count : 0; }
+
+  bool is_reference() const noexcept override
+  { return !this->_is_managed; }
 
   void clear() noexcept override
   {

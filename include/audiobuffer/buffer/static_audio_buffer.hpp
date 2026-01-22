@@ -42,6 +42,8 @@ class StaticAudioBuffer : public AudioBufferBase<T>
   StaticAudioBuffer() :
     _fixed_data({ .format_id = AudioBufferBase<T>::DESCRIPTOR::FORMAT_ID, .resizable = false })
   {
+    this->_is_managed = false;
+
     // Reference the auto-managed data to the data pointer of the base class.
     this->_data = &this->_fixed_data;
 

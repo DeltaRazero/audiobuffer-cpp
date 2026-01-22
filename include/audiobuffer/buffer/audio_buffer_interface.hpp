@@ -77,6 +77,12 @@ class AudioBufferInterface
   virtual channel_count_t get_channel_count() const noexcept
   =0;
 
+  ///
+  /// @brief Checks whether the audio buffer is a reference and it not managed.
+  ///
+  virtual bool is_reference() const noexcept
+  =0;
+
   // TODO: Add can_resize() and set_resize_block()
 
   ///

@@ -31,10 +31,6 @@ class AudioBuffer : public AudioBufferBase<T>
 
   // :: PROTECTED ATTRIBUTES :: //
 
-  // Whether this instance is responsible for managing the memory of the data
-  // struct.
-  bool _is_managed;
-
   #ifndef AUDIO_BUFFER_NONTHREAD_SAFE
     // Mutex for protecting the buffer against running multiple dynamic memory
     // allocation operations in parallel.
