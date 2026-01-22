@@ -252,7 +252,6 @@ class AudioBufferIOBase : public AudioBufferIOInterface
             channel[ref_offset+i] = this->_unpack1( io_byte_offset + (i * io_divider) );
           }
         }
-        current_io_byte += samples_per_read * io_divider;
 
         if (!this->_interm_ab.is_reference()) {
           // Copy the intermediate data to the source audio buffer.
@@ -261,7 +260,8 @@ class AudioBufferIOBase : public AudioBufferIOInterface
           this->_interm_ab.copy_to(this->_src_ab, copy_args);
         }
 
-        current_sample += intermediate_size;
+        current_sample  += intermediate_size;
+        current_io_byte += intermediate_size * io_divider;
         ref_offset = this->_interm_ab.is_reference()
           ? current_sample
           : 0;
@@ -351,9 +351,8 @@ class AudioBufferIOBase : public AudioBufferIOInterface
             this->_pack1(channel[ref_offset+i], io_byte_offset + (i * io_divider));
           }
         }
-        current_io_byte += samples_per_write * io_divider;
-
-        current_sample += intermediate_size;
+        current_sample  += intermediate_size;
+        current_io_byte += intermediate_size * io_divider;
         ref_offset = this->_interm_ab.is_reference()
           ? current_sample
           : 0;
