@@ -289,6 +289,9 @@ class AudioBufferIOBase : public AudioBufferIOInterface
       }
     }
 
+    // Sync write position with read position.
+    this->_stream->seekp(this->_stream->tellg());
+
     return current_sample;
   }
 
