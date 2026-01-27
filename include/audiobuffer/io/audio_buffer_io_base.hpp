@@ -72,6 +72,9 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     this->_stream = nullptr;
     this->_src_ab = nullptr;
 
+    this->_src_ab_buffer_size   = 0;
+    this->_src_ab_channel_count = 0;
+
     this->_io_buffer      = nullptr;
     this->_io_buffer_size = io_buffer_size;
     // This will enforce a minimum value for `io+buffer_size`.
