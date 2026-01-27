@@ -384,7 +384,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
         this->_stream->write(this->_io_buffer, amount_bytes_per_write);
         current_io_byte = 0;
         // Check the amount of bytes actually written.
-        auto amount_bytes_written = this->_stream->tellp() - pos;
+        std::size_t amount_bytes_written = this->_stream->tellp() - pos;
         if (amount_bytes_written != amount_bytes_per_write)
         {
           // If we were not able to write successfully, adjust the current

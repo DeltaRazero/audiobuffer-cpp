@@ -80,7 +80,7 @@ class AudioBuffer : public AudioBufferBase<T>
   /// @note If you wish to copy a buffer regardless of the class type, pass the
   ///   value as pointer to deduce it as `AudioBufferInterface`.
   ///
-  AudioBuffer (AudioBuffer& other) : AudioBuffer(&other)
+  AudioBuffer (const AudioBuffer& other) : AudioBuffer(&other)
   {}
 
   ///
@@ -88,7 +88,7 @@ class AudioBuffer : public AudioBufferBase<T>
   ///
   /// @param other The audio buffer to copy.
   ///
-  AudioBuffer (AudioBufferInterface* other)
+  AudioBuffer (const AudioBufferInterface* other)
   {
     this->_data       = nullptr;
     this->_is_managed = true;
@@ -115,7 +115,7 @@ class AudioBuffer : public AudioBufferBase<T>
   /// @note If you wish to copy a buffer regardless of the class type, pass the
   ///   value as pointer to deduce it as `AudioBufferInterface`.
   ///
-  AudioBuffer& operator= (AudioBuffer& other)
+  AudioBuffer& operator= (const AudioBuffer& other)
   { return this->operator=(&other); }
 
   ///
@@ -123,7 +123,7 @@ class AudioBuffer : public AudioBufferBase<T>
   ///
   /// @param other The audio buffer to copy.
   ///
-  AudioBuffer& operator= (AudioBufferInterface* other)
+  AudioBuffer& operator= (const AudioBufferInterface* other)
   {
     if (!other || this == other) {
       return *this;
@@ -150,7 +150,7 @@ class AudioBuffer : public AudioBufferBase<T>
   ///
   /// @param other The audio buffer to move.
   ///
-  AudioBuffer (AudioBuffer&& other) noexcept
+  AudioBuffer (const AudioBuffer&& other) noexcept
   {
     this->_data       = other._data;
     this->_is_managed = other._is_managed;
@@ -161,7 +161,7 @@ class AudioBuffer : public AudioBufferBase<T>
   ///
   /// @param other The audio buffer to move.
   ///
-  AudioBuffer& operator= (AudioBuffer&& other) noexcept
+  AudioBuffer& operator= (const AudioBuffer&& other) noexcept
   {
     if (this->_data) {
       this->~AudioBuffer();
@@ -281,7 +281,7 @@ class AudioBuffer : public AudioBufferBase<T>
     auto buffer  = AudioBuffer<typename AudioBufferBase<T>::SAMPLE_T, ALLOCATOR_T>(0,0);
     buffer._data = data;
     buffer._is_managed = false;
-    return buffer;
+    return std::make_optional(std::move(buffer));
   }
 
   // :: INTERFACE METHODS :: //
