@@ -216,7 +216,6 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     // When using a referenced intermediate audio buffer, we can just use offsets.
     buffer_size_t ref_offset = 0;
 
-    bool eof = false;
     std::size_t current_sample  = 0;
     std::size_t current_io_byte = 0;
     while (current_sample < size)
@@ -231,10 +230,12 @@ class AudioBufferIOBase : public AudioBufferIOInterface
       current_io_byte = 0;
       // If we hit unexpected EOF.
       std::size_t amount_bytes_read = this->_stream->gcount();
-      if (amount_bytes_read != amount_bytes_per_read) {
-        eof = true;
+      bool eof = amount_bytes_read != amount_bytes_per_read;
+      if (eof) {
         // Process what we still have read.
-        samples_per_read = amount_bytes_read / io_divider;
+        samples_per_read = amount_bytes_read
+          ? amount_bytes_per_read / io_divider
+          : 0;
       }
 
       std::size_t intermediate_size   = this->_interm_ab.get_buffer_size();
@@ -283,7 +284,6 @@ class AudioBufferIOBase : public AudioBufferIOInterface
           : 0;
       }
 
-      // Unexpected EOF.
       if (eof) {
         break;
       }
@@ -374,10 +374,29 @@ class AudioBufferIOBase : public AudioBufferIOInterface
           : 0;
       }
 
-      // Write new data to the stream.
-      this->_stream->write(this->_io_buffer, amount_bytes_per_write);
-      current_io_byte = 0;
+      {
+        // Get current position to check how many bytes we've been able to write.
+        auto pos = this->_stream->tellp();
+        // Write new data to the stream.
+        this->_stream->write(this->_io_buffer, amount_bytes_per_write);
+        current_io_byte = 0;
+        // Check the amount of bytes actually written.
+        auto amount_bytes_written = this->_stream->tellp() - pos;
+        if (amount_bytes_written != amount_bytes_per_write)
+        {
+          // If we were not able to write successfully, adjust the current
+          // sample position and stop trying to write.
+          auto amount_samples_written = amount_bytes_written
+            ? amount_bytes_written / io_divider
+            : 0;
+          current_sample -= (samples_per_write - amount_samples_written);
+          break;
+        }
+      }
     }
+
+    // Sync read position with write position.
+    this->_stream->seekg(this->_stream->tellp());
 
     return current_sample;
   }
