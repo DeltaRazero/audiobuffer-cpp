@@ -209,6 +209,9 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     CopyArgs copy_args;
 
     auto io_divider = this->_stream_channel_count * this->_sizeof_io_sample;
+    if (!io_divider) {
+      return 0;
+    }
     // Whole division and back to get the amount of bytes to fill the I/O buffer
     // so no samples or channels are read incompletely.
     std::size_t amount_bytes_per_read = this->_io_buffer_size / io_divider * io_divider;
@@ -241,7 +244,11 @@ class AudioBufferIOBase : public AudioBufferIOInterface
           : 0;
       }
 
-      std::size_t intermediate_size   = this->_interm_ab.get_buffer_size();
+      std::size_t intermediate_size = this->_interm_ab.get_buffer_size();
+      // Must be able to contain at least one sample for all channels.
+      if (intermediate_size < samples_per_read) {
+        break;
+      }
       std::size_t intermediate_passes = samples_per_read / intermediate_size;
       std::size_t intermediate_mod    = samples_per_read % intermediate_size;
       if (intermediate_mod) {
@@ -313,6 +320,9 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     CopyArgs copy_args;
 
     auto io_divider = this->_stream_channel_count * this->_sizeof_io_sample;
+    if (!io_divider) {
+      return 0;
+    }
     // Whole division and back to get the amount of bytes to fill the I/O buffer
     // so no samples or channels are written incompletely.
     std::size_t amount_bytes_per_write = this->_io_buffer_size  / io_divider * io_divider;
@@ -332,7 +342,11 @@ class AudioBufferIOBase : public AudioBufferIOInterface
         amount_bytes_per_write = samples_per_write * io_divider;
       }
 
-      std::size_t intermediate_size   = this->_interm_ab.get_buffer_size();
+      std::size_t intermediate_size = this->_interm_ab.get_buffer_size();
+      // Must be able to contain at least one sample for all channels.
+      if (intermediate_size < samples_per_write) {
+        break;
+      }
       std::size_t intermediate_passes = samples_per_write / intermediate_size;
       std::size_t intermediate_mod    = samples_per_write % intermediate_size;
       if (intermediate_mod) {
