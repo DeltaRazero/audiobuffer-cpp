@@ -56,8 +56,8 @@ class AudioBufferIOBase : public AudioBufferIOInterface
   public:
 
   ///
-  /// @param stream The stream object, implementing `std::iostream`
-  /// @param audio_buffer The audio buffer to read to/write from.
+  /// @param stream The stream object, implementing `std::iostream`.
+  /// @param audio_buffer The audio buffer to read from/write to.
   /// @param io_buffer_size The size of the buffer used to buffer I/O operations.
   /// @param sizeof_io_sample The size of a single sample in bytes.
   ///
@@ -201,7 +201,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     }
 
     std::tie(size, offset) = this->_sanitize_size_params(size, offset);
-    if (size == 0) {
+    if (!size) {
       return 0;
     }
     this->_update_ab_sizes();
@@ -276,7 +276,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
           std::size_t io_byte_offset = current_io_byte + (this->_sizeof_io_sample * c);
           for (i=0; i<intermediate_size; i++) {
-            channel[ref_offset+i] = this->_unpack1( io_byte_offset + (i * io_divider) );
+            channel[ref_offset+i] = this->_unpack1(io_byte_offset + (i * io_divider));
           }
         }
 
@@ -312,7 +312,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     }
 
     std::tie(size, offset) = this->_sanitize_size_params(size, offset);
-    if (size == 0) {
+    if (!size) {
       return 0;
     }
     this->_update_ab_sizes();

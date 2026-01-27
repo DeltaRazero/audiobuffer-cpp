@@ -23,10 +23,10 @@ class AudioBufferIOInterface
   public: virtual ~AudioBufferIOInterface() {};
 
   ///
-  /// @brief Sets the stream to read to/write from.
+  /// @brief Sets the stream to read from/write to.
   ///
   /// @param stream The stream object, implementing `std::iostream`.
-  /// @param audio_buffer The audio buffer to read to/write from.
+  /// @param audio_buffer The audio buffer to from/write to.
   ///
   /// @warning Channel count read from/written to the stream will not be updated
   ///   when the I/O audio buffer is reconfigured. Remaining channels will be
@@ -75,7 +75,7 @@ class AudioBufferIOInterface
   =0;
 
   ///
-  /// @brief Write samples from the I/O audio buffer.
+  /// @brief Writes samples from the I/O audio buffer.
   ///
   /// @param size Amount of samples per channel.
   /// @param offset Offset where to read the samples from in the I/O audio buffer.
