@@ -18,10 +18,10 @@ namespace audiobuffer {
 /// @brief Packs the format of the audio buffer data.
 typedef ab_format_id_t format_id_t;
 
-/// @brief For defining the channel count.
+/// @brief For defining the channel count in amount of channels.
 typedef ab_channel_count_t channel_count_t;
 
-/// @brief For defining the buffer size.
+/// @brief For defining the buffer size in amount of frames.
 typedef ab_buffer_size_t buffer_size_t;
 
 typedef ab_AudioBufferData AudioBufferData;

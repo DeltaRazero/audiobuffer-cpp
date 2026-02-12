@@ -18,18 +18,18 @@ namespace audiobuffer {
 
 /// @brief Structure to pass when calling a copy command.
 struct CopyArgs {
-  /// @brief How many samples to copy per channel. A value of `0` will copy all.
-  buffer_size_t  size = 0;
+  /// @brief How many frames to copy. A value of `0` will copy all.
+  buffer_size_t size = 0;
   /// @brief How many channels to copy. A value of `0` will copy all.
   channel_count_t channel_count = 0;
 
-  /// @brief Offset where to start copying samples from.
-  buffer_size_t  src_offset = 0;
+  /// @brief Offset where to start copying frames from.
+  buffer_size_t src_offset = 0;
   /// @brief Offset where to start copying channels from.
   channel_count_t src_channel_offset = 0;
 
-  /// @brief Offset where to start copying samples to.
-  buffer_size_t  dst_offset = 0;
+  /// @brief Offset where to start copying frames to.
+  buffer_size_t dst_offset = 0;
   /// @brief Offset where to start copying channels to.
   channel_count_t dst_channel_offset = 0;
 
@@ -55,7 +55,7 @@ class AudioBufferInterface
   =0;
 
   ///
-  /// @brief Gets the raw data structure managed by the audio buffer.
+  /// @brief Gets the raw data structure managed by the audio buffer instance.
   ///
   /// @note Mainly for internal use or for interfacing with other languages.
   ///
@@ -69,7 +69,7 @@ class AudioBufferInterface
   =0;
 
   ///
-  /// @brief Gets the amount of samples per channel in the audio buffer.
+  /// @brief Gets the amount of frames (samples per channel) in the audio buffer.
   ///
   virtual buffer_size_t get_buffer_size() const noexcept
   =0;
@@ -97,8 +97,8 @@ class AudioBufferInterface
   ///
   /// @brief Resizes contents of the audio buffer.
   ///
-  /// @param buffer_size The new amount of samples per channel.
-  ///   A value of zero retains the current amount of samples per channel.
+  /// @param buffer_size The new amount of frames (samples per channel).
+  ///   A value of zero retains the current amount of frames.
   /// @param channel_count The new amount of channels.
   ///   A value of zero retains the current amount of channels.
   ///

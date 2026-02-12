@@ -31,7 +31,7 @@ struct ab_AudioBufferData
 
   /// Amount of channels.
   ab_channel_count_t channel_count;
-  /// Amount of samples per channel.
+  /// Amount of frames (samples per channel).
   ab_buffer_size_t buffer_size;
 
   /// Raw pointer to the buffer sample data.

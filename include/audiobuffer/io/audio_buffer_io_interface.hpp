@@ -47,13 +47,13 @@ class AudioBufferIOInterface
   ///
   /// @brief Changes the current read/write position.
   ///
-  /// @param samples Amount of samples per channel.
+  /// @param frames Amount of frames (samples per channel).
   /// @param direction Seek direction.
   /// @param offset Raw offset in the stream.
   /// @param offset_direction Seek direction of the raw offset.
   ///
   virtual void seek(
-    std::streampos samples,
+    std::streampos frames,
     std::ios_base::seekdir direction=std::ios::beg,
     std::streamoff offset=0,
     std::ios_base::seekdir offset_direction=std::ios::beg
@@ -61,12 +61,12 @@ class AudioBufferIOInterface
   =0;
 
   ///
-  /// @brief Reads samples to the I/O audio buffer.
+  /// @brief Reads frames to the I/O audio buffer.
   ///
-  /// @param size Amount of samples per channel.
-  /// @param offset Offset where to write the samples to in the I/O audio buffer.
+  /// @param size Amount of frames (samples per channel).
+  /// @param offset Offset where to write the frames to in the I/O audio buffer.
   ///
-  /// @return Amount of samples read.
+  /// @return Amount of frames read.
   ///
   /// @warning `size` and `offset` will be limited to the size and offset of the
   ///   the I/O audio buffer if the values are larger.
@@ -75,12 +75,12 @@ class AudioBufferIOInterface
   =0;
 
   ///
-  /// @brief Writes samples from the I/O audio buffer.
+  /// @brief Writes frames from the I/O audio buffer.
   ///
-  /// @param size Amount of samples per channel.
-  /// @param offset Offset where to read the samples from in the I/O audio buffer.
+  /// @param size Amount of frames (samples per channel).
+  /// @param offset Offset where to read the frames from in the I/O audio buffer.
   ///
-  /// @return Amount of samples written.
+  /// @return Amount of frames written.
   ///
   /// @warning `size` and `offset` will be limited to the size and offset of the
   ///   the I/O audio buffer if the values are larger.

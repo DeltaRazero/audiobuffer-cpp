@@ -78,7 +78,7 @@ bool copy_audio_buffer_data(AudioBufferData& src, AudioBufferData& dst, CopyArgs
   auto src_channels = reinterpret_cast<SRC_SAMPLE_T**>(src.channels);
   auto dst_channels = reinterpret_cast<DST_SAMPLE_T**>(dst.channels);
 
-  // Amount of samples to pad with zeros.
+  // Amount of frames to pad with zeros.
   auto pad_size = src.buffer_size < dst.buffer_size
     ? dst.buffer_size - src.buffer_size
     : 0;

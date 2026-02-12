@@ -20,8 +20,8 @@ namespace audiobuffer {
 /// @brief An audio buffer container for storing a fixed size sequence of channels and samples.
 ///
 /// @tparam T The sample type.
-/// @tparam CHANNEL_COUNT_V The amount of channels the buffer should have.
-/// @tparam BUFFER_SIZE_V The amount of samples the buffer should have.
+/// @tparam CHANNEL_COUNT_V The amount of channels the audio buffer should have.
+/// @tparam BUFFER_SIZE_V The amount of frames (samples per channel) the audio buffer should have.
 ///
 template <typename T, channel_count_t CHANNEL_COUNT_V, buffer_size_t BUFFER_SIZE_V>
 class StaticAudioBuffer : public AudioBufferBase<T>

@@ -19,7 +19,7 @@ namespace audiobuffer::io {
 // *****************************************************************************
 
 ///
-/// @brief An audio buffer container which offers fixed time access to individual channels and samples in any order.
+/// @brief Base class for providing I/O using audio buffer containers.
 ///
 /// @tparam T The sample type.
 /// @tparam ALLOCATOR_T Allocator class, defaults to `std::allocator`.
@@ -173,7 +173,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
   public:
 
   void seek(
-    std::streampos samples,
+    std::streampos frames,
     std::ios_base::seekdir direction=std::ios::beg,
     std::streamoff offset=0,
     std::ios_base::seekdir offset_direction=std::ios::beg
@@ -187,9 +187,9 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     // Offset seek.
     this->_stream->seekg(offset, offset_direction);
     this->_stream->seekp(offset, offset_direction);
-    // Sample seek.
-    this->_stream->seekg(samples * this->_src_ab_buffer_size * this->_src_ab_channel_count, direction);
-    this->_stream->seekp(samples * this->_src_ab_buffer_size * this->_src_ab_channel_count, direction);
+    // Frame seek.
+    this->_stream->seekg(frames * this->_src_ab_buffer_size * this->_src_ab_channel_count, direction);
+    this->_stream->seekp(frames * this->_src_ab_buffer_size * this->_src_ab_channel_count, direction);
 
     return;
   }
@@ -213,22 +213,22 @@ class AudioBufferIOBase : public AudioBufferIOInterface
       return 0;
     }
     // Whole division and back to get the amount of bytes to fill the I/O buffer
-    // so no samples or channels are read incompletely.
+    // so no frames (samples of all channels) are read incompletely.
     std::size_t amount_bytes_per_read = this->_io_buffer_size / io_divider * io_divider;
-    std::size_t samples_per_read      = amount_bytes_per_read / io_divider;
+    std::size_t frames_per_read       = amount_bytes_per_read / io_divider;
 
     buffer_size_t   i;
     channel_count_t c;
     // When using a referenced intermediate audio buffer, we can just use offsets.
     buffer_size_t ref_offset = 0;
 
-    std::size_t current_sample  = 0;
+    std::size_t current_frame   = 0;
     std::size_t current_io_byte = 0;
-    while (current_sample < size)
+    while (current_frame < size)
     {
-      if (current_sample + samples_per_read > size) {
-        samples_per_read      = size - current_sample;
-        amount_bytes_per_read = samples_per_read * io_divider;
+      if (current_frame + frames_per_read > size) {
+        frames_per_read       = size - current_frame;
+        amount_bytes_per_read = frames_per_read * io_divider;
       }
 
       // Read new data from the stream.
@@ -239,18 +239,18 @@ class AudioBufferIOBase : public AudioBufferIOInterface
       bool eof = amount_bytes_read != amount_bytes_per_read;
       if (eof) {
         // Process what we still have read.
-        samples_per_read = amount_bytes_read
+        frames_per_read = amount_bytes_read
           ? amount_bytes_per_read / io_divider
           : 0;
       }
 
       std::size_t intermediate_size = this->_interm_ab.get_buffer_size();
-      // Must be able to contain at least one sample for all channels.
-      if (intermediate_size < samples_per_read) {
+      // Must be able to contain at least one frame (sample for all channels).
+      if (!intermediate_size) {
         break;
       }
-      std::size_t intermediate_passes = samples_per_read / intermediate_size;
-      std::size_t intermediate_mod    = samples_per_read % intermediate_size;
+      std::size_t intermediate_passes = frames_per_read / intermediate_size;
+      std::size_t intermediate_mod    = frames_per_read % intermediate_size;
       if (intermediate_mod) {
         intermediate_passes += 1;
       }
@@ -283,14 +283,14 @@ class AudioBufferIOBase : public AudioBufferIOInterface
         if (!this->_interm_ab.is_reference()) {
           // Copy the intermediate data to the source audio buffer.
           copy_args.size       = intermediate_size;
-          copy_args.dst_offset = current_sample;
+          copy_args.dst_offset = current_frame;
           this->_interm_ab.copy_to(this->_src_ab, copy_args);
         }
 
-        current_sample  += intermediate_size;
+        current_frame   += intermediate_size;
         current_io_byte += intermediate_size * io_divider;
         ref_offset = this->_interm_ab.is_reference()
-          ? current_sample
+          ? current_frame
           : 0;
       }
 
@@ -302,7 +302,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     // Sync write position with read position.
     this->_stream->seekp(this->_stream->tellg());
 
-    return current_sample;
+    return current_frame;
   }
 
   std::size_t write(std::size_t size=0, std::size_t offset=0) override
@@ -324,31 +324,31 @@ class AudioBufferIOBase : public AudioBufferIOInterface
       return 0;
     }
     // Whole division and back to get the amount of bytes to fill the I/O buffer
-    // so no samples or channels are written incompletely.
+    // so no frames (samples of all channels) are written incompletely.
     std::size_t amount_bytes_per_write = this->_io_buffer_size  / io_divider * io_divider;
-    std::size_t samples_per_write      = amount_bytes_per_write / io_divider;
+    std::size_t frames_per_write       = amount_bytes_per_write / io_divider;
 
     buffer_size_t   i;
     channel_count_t c;
     // When using a referenced intermediate audio buffer, we can just use offsets.
     buffer_size_t ref_offset = 0;
 
-    std::size_t current_sample  = 0;
+    std::size_t current_frame   = 0;
     std::size_t current_io_byte = 0;
-    while (current_sample < size)
+    while (current_frame < size)
     {
-      if (current_sample + samples_per_write > size) {
-        samples_per_write = size - current_sample;
-        amount_bytes_per_write = samples_per_write * io_divider;
+      if (current_frame + frames_per_write > size) {
+        frames_per_write = size - current_frame;
+        amount_bytes_per_write = frames_per_write * io_divider;
       }
 
       std::size_t intermediate_size = this->_interm_ab.get_buffer_size();
-      // Must be able to contain at least one sample for all channels.
-      if (intermediate_size < samples_per_write) {
+      // Must be able to contain at least one frame (sample for all channels).
+      if (!intermediate_size) {
         break;
       }
-      std::size_t intermediate_passes = samples_per_write / intermediate_size;
-      std::size_t intermediate_mod    = samples_per_write % intermediate_size;
+      std::size_t intermediate_passes = frames_per_write / intermediate_size;
+      std::size_t intermediate_mod    = frames_per_write % intermediate_size;
       if (intermediate_mod) {
         intermediate_passes += 1;
       }
@@ -363,7 +363,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
         if (!this->_interm_ab.is_reference()) {
           // Copy the intermediate data from the source audio buffer.
           copy_args.size       = intermediate_size;
-          copy_args.src_offset = current_sample;
+          copy_args.src_offset = current_frame;
           this->_interm_ab.copy_from(this->_src_ab, copy_args);
         }
 
@@ -387,10 +387,10 @@ class AudioBufferIOBase : public AudioBufferIOInterface
             this->_pack1(channel[ref_offset+i], io_byte_offset + (i * io_divider));
           }
         }
-        current_sample  += intermediate_size;
+        current_frame   += intermediate_size;
         current_io_byte += intermediate_size * io_divider;
         ref_offset = this->_interm_ab.is_reference()
-          ? current_sample
+          ? current_frame
           : 0;
       }
 
@@ -405,11 +405,11 @@ class AudioBufferIOBase : public AudioBufferIOInterface
         if (amount_bytes_written != amount_bytes_per_write)
         {
           // If we were not able to write successfully, adjust the current
-          // sample position and stop trying to write.
-          auto amount_samples_written = amount_bytes_written
+          // frame position and stop trying to write.
+          auto amount_frames_written = amount_bytes_written
             ? amount_bytes_written / io_divider
             : 0;
-          current_sample -= (samples_per_write - amount_samples_written);
+          current_frame -= (frames_per_write - amount_frames_written);
           break;
         }
       }
@@ -418,7 +418,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     // Sync read position with write position.
     this->_stream->seekg(this->_stream->tellp());
 
-    return current_sample;
+    return current_frame;
   }
 
   protected:
@@ -500,7 +500,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
   ///
   /// @brief Sanitizes size parameters of I/O operations.
   ///
-  /// @param size Amount of samples to read/write.
+  /// @param size Amount of frames to read/write.
   /// @param offset Offset in the audio buffer to read from/write to.
   ///
   /// @return Tuple with sanitized size and offset values.
