@@ -394,24 +394,22 @@ class AudioBufferIOBase : public AudioBufferIOInterface
           : 0;
       }
 
+      // Get current position to check how many bytes we've been able to write.
+      auto pos = this->_stream->tellp();
+      // Write new data to the stream.
+      this->_stream->write(this->_io_buffer, amount_bytes_per_write);
+      current_io_byte = 0;
+      // Check the amount of bytes actually written.
+      std::size_t amount_bytes_written = this->_stream->tellp() - pos;
+      if (amount_bytes_written != amount_bytes_per_write)
       {
-        // Get current position to check how many bytes we've been able to write.
-        auto pos = this->_stream->tellp();
-        // Write new data to the stream.
-        this->_stream->write(this->_io_buffer, amount_bytes_per_write);
-        current_io_byte = 0;
-        // Check the amount of bytes actually written.
-        std::size_t amount_bytes_written = this->_stream->tellp() - pos;
-        if (amount_bytes_written != amount_bytes_per_write)
-        {
-          // If we were not able to write successfully, adjust the current
-          // frame position and stop trying to write.
-          auto amount_frames_written = amount_bytes_written
-            ? amount_bytes_written / io_divider
-            : 0;
-          current_frame -= (frames_per_write - amount_frames_written);
-          break;
-        }
+        // If we were not able to write successfully, adjust the current
+        // frame position and stop trying to write.
+        auto amount_frames_written = amount_bytes_written
+          ? amount_bytes_written / io_divider
+          : 0;
+        current_frame -= (frames_per_write - amount_frames_written);
+        break;
       }
     }
 
