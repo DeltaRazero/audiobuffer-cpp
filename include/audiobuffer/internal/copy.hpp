@@ -127,10 +127,35 @@ bool copy_audio_buffer_data(AudioBufferData& src, AudioBufferData& dst, CopyArgs
           // Bitshift left; cast to target type first, then shift.
           if constexpr (DST_BITS > SRC_BITS) {
             dst_channel[i_dst] = (static_cast<DST_SAMPLE_T>(src_channel[i_src]) << SHIFT_AMOUNT);
+
             // Range correction: positive range has less values than negative.
-            dst_channel[i_dst] += src_channel[i_src] > SRC_DESCRIPTOR::CENTER
-              ? (1 << (src_channel[i_src] & SHIFT_AMOUNT)) - 1
-              : 0;
+            if (src_channel[i_src] > SRC_DESCRIPTOR::CENTER) {
+              constexpr int POS_CORRECTION_SHIFTS = []() {
+                int shifts = (DST_BITS / SRC_BITS) - 1;
+                if (shifts < 0) {
+                  shifts = 0;
+                }
+                return shifts;
+              }();
+              // FIXME: There should be a way to spread out offset incrementally so
+              //   the values map correctly. Haven't found the exact pattern when
+              //   more values should be added yet. For the time being this only
+              //   adds miniscule offset (at most 0.003%).
+              constexpr int POS_POSTFIX = []() {
+                int add = (1 << POS_CORRECTION_SHIFTS) - 1;
+                if (add <= 0) {
+                  add = 1;
+                }
+                return add;
+              }();
+
+              DST_SAMPLE_T original_value = static_cast<DST_SAMPLE_T>(src_channel[i_dst]);
+
+              for (int i=0; i<POS_CORRECTION_SHIFTS; i++) {
+                dst_channel[i_dst] += (original_value << POS_CORRECTION_SHIFTS) << (7 * i);
+              }
+              dst_channel[i_dst] |= POS_POSTFIX;
+            }
           }
           // Bitshift right; shift first, then cast to target type.
           if constexpr (DST_BITS < SRC_BITS) {
