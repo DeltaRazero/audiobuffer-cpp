@@ -65,23 +65,40 @@ DST_T inline scaled_inv_2s_complement(SRC_T input) noexcept
   constexpr int DST_BITS = sizeof(DST_T)*8;
   constexpr int VALUE_SHIFT = constexpr_abs(DST_BITS - SRC_BITS);
 
-  #define __calc_middle(__t, __bits) \
-     (static_cast<__t>(1) << (__bits-2)) + \
-    ((static_cast<__t>(1) << (__bits-2)) - 1)
-  // #enddefine
-
-  constexpr SRC_T SRC_MIDDLE = __calc_middle(SRC_T, SRC_BITS);
-  constexpr DST_T DST_MIDDLE = __calc_middle(DST_T, DST_BITS);
-
-  #undef __calc_middle
-
+  // We can skip processing if it's the center value.
   DST_T output;
+
+  constexpr int POS_CORRECTION_SHIFTS = []() {
+    int shifts = (DST_BITS / SRC_BITS) - 1;
+    if (shifts < 0) {
+      shifts = 0;
+    }
+    return shifts;
+  }();
+  // FIXME: There should be a way to spread out offset incrementally so
+  //   the values map correctly. Haven't found the exact pattern when
+  //   more values should be added yet. For the time being this only
+  //   adds miniscule offset (at most 0.003%).
+  constexpr int POS_POSTFIX = []() {
+    int add = (1 << POS_CORRECTION_SHIFTS) - 1;
+    if (add <= 0) {
+      add = 1;
+    }
+    return add;
+  }();
 
   if constexpr (std::is_unsigned_v<SRC_T>)
   {
-    bool is_positive = input >= SRC_MIDDLE;
+    constexpr SRC_T SRC_CENTER = 1 << (SRC_BITS - 1);
+    constexpr DST_T DST_MAX = (static_cast<DST_T>(1) << (DST_BITS-2)) - 1 + (static_cast<DST_T>(1) << (DST_BITS-2));
+
+    if (input == SRC_CENTER) {
+      return static_cast<DST_T>(0);
+    }
+
+    bool is_positive = input > SRC_CENTER;
     if (is_positive) {
-      input = input - SRC_MIDDLE - 1;
+      input -= SRC_CENTER;
     }
 
     // Shift right.
@@ -91,27 +108,40 @@ DST_T inline scaled_inv_2s_complement(SRC_T input) noexcept
 
     output = static_cast<DST_T>(input);
     if (!is_positive) {
-      constexpr DST_T adjust_middle = DST_BITS < SRC_BITS
-        ? DST_MIDDLE
-        : static_cast<DST_T>(SRC_MIDDLE);
-      output = output - adjust_middle - 1;
+      // We need to make the value a signed negative value again.
+      constexpr DST_T NEG_OFFSET = DST_BITS < SRC_BITS
+        ? DST_MAX
+        : static_cast<DST_T>(SRC_CENTER - 1);
+      output = output - NEG_OFFSET - 1;
     }
 
     // Shift left.
     if constexpr (DST_BITS > SRC_BITS) {
+      DST_T pre_shifted = output;
+
       output <<= VALUE_SHIFT;
       // Range correction: positive range has less values than negative.
-      output += is_positive
-        ? (1 << (input & VALUE_SHIFT)) - 1
-        : 0;
+      if (is_positive) {
+        for (int i=0; i<POS_CORRECTION_SHIFTS; i++) {
+          output += (pre_shifted << POS_CORRECTION_SHIFTS) << (7 * i);
+        }
+        output |= POS_POSTFIX;
+      }
     }
   }
   // Is signed.
   else
   {
+    constexpr DST_T DST_CENTER = 1 << (DST_BITS - 1);
+    constexpr SRC_T SRC_MAX = (static_cast<SRC_T>(1) << (SRC_BITS-2)) - 1 + (static_cast<SRC_T>(1) << (SRC_BITS-2));
+
+    if (input == 0) {
+      return static_cast<DST_T>(DST_CENTER);
+    }
+
     bool is_negative = input < 0;
     if (is_negative) {
-      input = input + SRC_MIDDLE + 1;
+      input = input + SRC_MAX + 1;
     }
 
     // Shift right.
@@ -121,19 +151,25 @@ DST_T inline scaled_inv_2s_complement(SRC_T input) noexcept
 
     output = static_cast<DST_T>(input);
     if (!is_negative) {
-      constexpr DST_T adjust_middle = DST_BITS < SRC_BITS
-        ? DST_MIDDLE
-        : static_cast<DST_T>(SRC_MIDDLE);
-      output = output + adjust_middle + 1;
+      // We need to make the value an unsigned positive value again.
+      constexpr DST_T POS_OFFSET = DST_BITS < SRC_BITS
+        ? DST_CENTER - 1
+        : static_cast<DST_T>(SRC_MAX);
+      output = output + POS_OFFSET + 1;
     }
 
     // Shift left.
     if constexpr (DST_BITS > SRC_BITS) {
+      DST_T pre_shifted = static_cast<DST_T>(input);
+
       output <<= VALUE_SHIFT;
       // Range correction: positive range has less values than negative.
-      output += !is_negative
-        ? (1 << (input & VALUE_SHIFT)) - 1
-        : 0;
+      if (!is_negative) {
+        for (int i=0; i<POS_CORRECTION_SHIFTS; i++) {
+          output += (pre_shifted << POS_CORRECTION_SHIFTS) << (7 * i);
+        }
+        output |= POS_POSTFIX;
+      }
     }
   }
 
@@ -144,17 +180,40 @@ template<typename T, int SRC_BITS, int DST_BITS>
 inline constexpr auto scale_int(T input) noexcept
 {
   T scaled_value = input;
-  constexpr T middle = (T(1) << (sizeof(T)*8-2)) + ((T(1) << (sizeof(T)*8-2)) - 1);
+  constexpr T center = (T(1) << (sizeof(T)*8-2)) + ((T(1) << (sizeof(T)*8-2)) - 1);
 
   constexpr auto SHIFT_AMOUNT = constexpr_abs(DST_BITS - SRC_BITS);
 
   // Bitshift left; cast to target type first, then shift.
   if constexpr (DST_BITS > SRC_BITS) {
     scaled_value <<= SHIFT_AMOUNT;
+
     // Range correction: positive range has less values than negative.
-    scaled_value += input > middle
-      ? (1 << (input & SHIFT_AMOUNT)) - 1
-      : 0;
+    if (input > center) {
+      constexpr int POS_CORRECTION_SHIFTS = []() {
+        int shifts = (DST_BITS / SRC_BITS) - 1;
+        if (shifts < 0) {
+          shifts = 0;
+        }
+        return shifts;
+      }();
+      // FIXME: There should be a way to spread out offset incrementally so
+      //   the values map correctly. Haven't found the exact pattern when
+      //   more values should be added yet. For the time being this only
+      //   adds miniscule offset (at most 0.003%).
+      constexpr int POS_POSTFIX = []() {
+        int add = (1 << POS_CORRECTION_SHIFTS) - 1;
+        if (add <= 0) {
+          add = 1;
+        }
+        return add;
+      }();
+
+      for (int i=0; i<POS_CORRECTION_SHIFTS; i++) {
+        scaled_value += (input << POS_CORRECTION_SHIFTS) << (7 * i);
+      }
+      scaled_value |= POS_POSTFIX;
+    }
   }
   // Bitshift right; shift first, then cast to target type.
   if constexpr (DST_BITS < SRC_BITS) {

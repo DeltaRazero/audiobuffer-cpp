@@ -149,10 +149,10 @@ bool copy_audio_buffer_data(AudioBufferData& src, AudioBufferData& dst, CopyArgs
                 return add;
               }();
 
-              DST_SAMPLE_T original_value = static_cast<DST_SAMPLE_T>(src_channel[i_dst]);
+              DST_SAMPLE_T pre_shifted = static_cast<DST_SAMPLE_T>(src_channel[i_dst]);
 
               for (int i=0; i<POS_CORRECTION_SHIFTS; i++) {
-                dst_channel[i_dst] += (original_value << POS_CORRECTION_SHIFTS) << (7 * i);
+                dst_channel[i_dst] += (pre_shifted << POS_CORRECTION_SHIFTS) << (7 * i);
               }
               dst_channel[i_dst] |= POS_POSTFIX;
             }
