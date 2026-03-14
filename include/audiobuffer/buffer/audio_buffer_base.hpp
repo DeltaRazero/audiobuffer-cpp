@@ -225,6 +225,10 @@ class AudioBufferBase : public AudioBufferInterface
         FORMAT_CASE(std:: int8_t);
         FORMAT_CASE(std::int16_t);
         FORMAT_CASE(std::int32_t);
+        #ifdef audiobuffer__enable_nonstd_unsigned
+          FORMAT_CASE(std::uint16_t);
+          FORMAT_CASE(std::uint32_t);
+        #endif
         FORMAT_CASE(float );
         FORMAT_CASE(double);
 
@@ -261,6 +265,10 @@ class AudioBufferBase : public AudioBufferInterface
         FORMAT_CASE(std:: int8_t);
         FORMAT_CASE(std::int16_t);
         FORMAT_CASE(std::int32_t);
+        #ifdef audiobuffer__enable_nonstd_unsigned
+          FORMAT_CASE(std::uint16_t);
+          FORMAT_CASE(std::uint32_t);
+        #endif
         FORMAT_CASE(float );
         FORMAT_CASE(double);
 
