@@ -150,6 +150,9 @@ bool copy_audio_buffer_data(AudioBufferData& src, AudioBufferData& dst, CopyArgs
               }();
 
               DST_SAMPLE_T pre_shifted = static_cast<DST_SAMPLE_T>(src_channel[i_dst]);
+              if constexpr (!SRC_DESCRIPTOR::IS_SIGNED) {
+                pre_shifted -= SRC_DESCRIPTOR::CENTER;
+              }
 
               for (int i=0; i<POS_CORRECTION_SHIFTS; i++) {
                 dst_channel[i_dst] += (pre_shifted << POS_CORRECTION_SHIFTS) << (7 * i);
