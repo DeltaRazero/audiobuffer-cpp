@@ -43,12 +43,15 @@ class IntegerAudioBufferIO : public AudioBufferIOBase<T, ALLOCATOR_T>
 
   public:
 
+  ///
+  /// @param stream The stream object, implementing `std::iostream`.
+  /// @param io_buffer_size The size of the buffer used to buffer I/O operations.
+  ///
   IntegerAudioBufferIO(
     std::iostream& stream,
-    ::audiobuffer::AudioBufferInterface& audio_buffer,
     std::size_t io_buffer_size=IntegerAudioBufferIO::DEFAULT_IO_BUFFER_SIZE
   )
-    : AudioBufferIOBase<T, ALLOCATOR_T>(stream, audio_buffer, io_buffer_size, NUMIO_TYPE::N_IO_BYTES)
+    : AudioBufferIOBase<T, ALLOCATOR_T>(stream, io_buffer_size, NUMIO_TYPE::N_IO_BYTES)
   {}
 
   protected:

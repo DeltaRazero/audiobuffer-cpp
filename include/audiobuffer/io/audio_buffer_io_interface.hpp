@@ -26,14 +26,8 @@ class AudioBufferIOInterface
   /// @brief Sets the stream to read from/write to.
   ///
   /// @param stream The stream object, implementing `std::iostream`.
-  /// @param audio_buffer The audio buffer to from/write to.
   ///
-  /// @warning Channel count read from/written to the stream will not be updated
-  ///   when the I/O audio buffer is reconfigured. Remaining channels will be
-  ///   padded with DC center values. If you want to change the channel count,
-  ///   you will need to call `set_stream()` again.
-  ///
-  virtual void set_stream(std::iostream& stream, ::audiobuffer::AudioBufferInterface& audio_buffer)
+  virtual void set_stream(std::iostream& stream)
   =0;
 
   ///
@@ -63,29 +57,35 @@ class AudioBufferIOInterface
   ///
   /// @brief Reads frames to the I/O audio buffer.
   ///
-  /// @param size Amount of frames (samples per channel).
+  /// @param audio_buffer The buffer to read to.
+  /// @param size Amount of frames (samples per channel). If not set, will be
+  ///   the size of the audio buffer to read to.
   /// @param offset Offset where to write the frames to in the I/O audio buffer.
+  ///   If not set, will be at the start of the audio buffer to read to.
   ///
   /// @return Amount of frames read.
   ///
   /// @warning `size` and `offset` will be limited to the size and offset of the
   ///   the I/O audio buffer if the values are larger.
   ///
-  virtual std::size_t read(std::size_t size=0, std::size_t offset=0)
+  virtual std::size_t read(audiobuffer::AudioBufferInterface& audio_buffer, std::size_t size=0, std::size_t offset=0)
   =0;
 
   ///
   /// @brief Writes frames from the I/O audio buffer.
   ///
-  /// @param size Amount of frames (samples per channel).
+  /// @param audio_buffer The buffer to write from.
+  /// @param size Amount of frames (samples per channel). If not set, will be
+  ///   the size of the audio buffer to write from.
   /// @param offset Offset where to read the frames from in the I/O audio buffer.
+  ///   If not set, will be at the start of the audio buffer to write from.
   ///
   /// @return Amount of frames written.
   ///
   /// @warning `size` and `offset` will be limited to the size and offset of the
   ///   the I/O audio buffer if the values are larger.
   ///
-  virtual std::size_t write(std::size_t size=0, std::size_t offset=0)
+  virtual std::size_t write(audiobuffer::AudioBufferInterface& audio_buffer, std::size_t size=0, std::size_t offset=0)
   =0;
 };
 
