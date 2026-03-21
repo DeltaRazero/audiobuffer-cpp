@@ -317,17 +317,6 @@ class AudioBuffer : public AudioBufferBase<T>
       }
     }
 
-    // If we can't resize.
-    if (!this->_data->resizable || this->_data->block_resize) {
-      #if (audiobuffer__disable_exceptions)
-        return false;
-      #else
-        this->_data->block_resize
-          ? throw std::runtime_error("Cannot resize audio buffer: resize-block flag is set.")
-          : throw std::runtime_error("Cannot resize audio buffer: data is not resizable.");
-      #endif
-    }
-
     // If both buffer size and channel count are zero, we deallocate the memory.
     if (!(buffer_size && channel_count)) {
       buffer_size   = 0;
@@ -346,6 +335,17 @@ class AudioBuffer : public AudioBufferBase<T>
     // If the sizes are the same, we don't have to do any reallocations.
     if (buffer_size == this->_data->buffer_size && channel_count == this->_data->channel_count) {
       return true;
+    }
+
+    // If we can't resize.
+    if (!this->_data->resizable || this->_data->block_resize) {
+      #if (audiobuffer__disable_exceptions)
+        return false;
+      #else
+        this->_data->block_resize
+          ? throw std::runtime_error("Cannot resize audio buffer: resize-block flag is set.")
+          : throw std::runtime_error("Cannot resize audio buffer: data is not resizable.");
+      #endif
     }
 
     {
