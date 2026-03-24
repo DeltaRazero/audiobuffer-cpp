@@ -26,8 +26,9 @@ class AudioBufferIOInterface
   /// @brief Sets the stream to read from/write to.
   ///
   /// @param stream The stream object, implementing `std::iostream`.
+  /// @param stream_channel_count The amount of channels in the stream..
   ///
-  virtual void set_stream(std::iostream& stream)
+  virtual void set_stream(std::iostream& stream, channel_count_t stream_channel_count)
   =0;
 
   ///

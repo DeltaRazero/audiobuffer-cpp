@@ -51,9 +51,15 @@ class IEEEFloatAudioBufferIO : public AudioBufferIOBase<T, ALLOCATOR_T>
   ///
   IEEEFloatAudioBufferIO(
     std::iostream& stream,
+    channel_count_t stream_channel_count,
     std::size_t io_buffer_size=IEEEFloatAudioBufferIO::DEFAULT_IO_BUFFER_SIZE
   )
-    : AudioBufferIOBase<T, ALLOCATOR_T>(stream, io_buffer_size, NUMIO_TYPE::N_IO_BYTES)
+    : AudioBufferIOBase<T, ALLOCATOR_T>(
+        NUMIO_TYPE::N_IO_BYTES,
+        stream,
+        stream_channel_count,
+        io_buffer_size
+      )
   {}
 
   protected:
