@@ -80,8 +80,8 @@ class AudioBufferBase : public AudioBufferInterface
   format_id_t get_format_id() const noexcept override final
   { return this->has_data() ? this->_data->format_id : 0; }
 
-  buffer_size_t get_buffer_size() const noexcept override final
-  { return this->has_data() ? this->_data->buffer_size : 0; }
+  frame_count_t get_frame_count() const noexcept override final
+  { return this->has_data() ? this->_data->frame_count : 0; }
 
   channel_count_t get_channel_count() const noexcept override final
   { return this->has_data() ? this->_data->channel_count : 0; }
@@ -93,7 +93,7 @@ class AudioBufferBase : public AudioBufferInterface
   {
     for (channel_count_t c=0; c<this->get_channel_count(); c++) {
       auto channel = this->get_channel(c);
-      for (buffer_size_t i=0; i<this->get_buffer_size(); i++) {
+      for (frame_count_t i=0; i<this->get_frame_count(); i++) {
         channel[i] = DESCRIPTOR::CENTER;
       }
     }
@@ -114,7 +114,7 @@ class AudioBufferBase : public AudioBufferInterface
     auto src_channel = this->get_channel(src_channel_index);
     auto dst_channel = this->get_channel(dst_channel_index);
 
-    for (buffer_size_t i=0; i<this->_data->buffer_size; i++) {
+    for (frame_count_t i=0; i<this->_data->frame_count; i++) {
       dst_channel[i] = src_channel[i];
     }
 
@@ -294,10 +294,10 @@ class AudioBufferBase : public AudioBufferInterface
     }
 
     auto channel_count = this->_data->channel_count;
-    auto buffer_size   = this->_data->buffer_size;
+    auto frame_count   = this->_data->frame_count;
 
     for (channel_count_t c=0; c<channel_count; c++) {
-      this->_data->channels[c] = &reinterpret_cast<SAMPLE_T*>(this->_data->buffer)[buffer_size*c];
+      this->_data->channels[c] = &reinterpret_cast<SAMPLE_T*>(this->_data->buffer)[frame_count*c];
     }
     return;
   }

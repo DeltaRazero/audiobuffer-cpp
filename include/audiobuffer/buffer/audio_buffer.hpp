@@ -53,23 +53,23 @@ class AudioBuffer : public AudioBufferBase<T>
   /// @brief Data constructor.
   ///
   /// @param channel_count The initial amount of channels.
-  /// @param buffer_size The initial size of the buffer.
+  /// @param frame_count The initial amount of frames.
   ///
-  /// @note When either `channel_count` or `buffer_size` has a value of 0, no
+  /// @note When either `channel_count` or `frame_count` has a value of 0, no
   ///   allocations will be done.
   ///
-  AudioBuffer(channel_count_t channel_count, buffer_size_t buffer_size)
+  AudioBuffer(channel_count_t channel_count, frame_count_t frame_count)
   {
     this->_data       = nullptr;
     this->_is_managed = true;
 
     // Don't do any allocations when unmanaged.
-    if (!(channel_count && buffer_size)) {
+    if (!(channel_count && frame_count)) {
       return;
     }
 
     // Resizing also clears the values in the buffer.
-    this->resize(buffer_size, channel_count);
+    this->resize(frame_count, channel_count);
   }
 
   ///
@@ -101,7 +101,7 @@ class AudioBuffer : public AudioBufferBase<T>
     }
 
     this->resize(
-      other->get_buffer_size(),
+      other->get_frame_count(),
       other->get_channel_count()
     );
     this->copy_from(other);
@@ -137,7 +137,7 @@ class AudioBuffer : public AudioBufferBase<T>
 
     this->_is_managed = true;
     this->resize(
-      other->get_buffer_size(),
+      other->get_frame_count(),
       other->get_channel_count()
     );
     this->copy_from(other);
@@ -226,10 +226,10 @@ class AudioBuffer : public AudioBufferBase<T>
       buffer_alloc_t::deallocate(
         buffer_alloc,
         static_cast<typename AudioBufferBase<T>::SAMPLE_T*>(data->buffer),
-        data->buffer_size * data->channel_count
+        data->frame_count * data->channel_count
       );
       data->buffer      = nullptr;
-      data->buffer_size = 0;
+      data->frame_count = 0;
     }
     // Channel pointer table.
     if (data->channels) {
@@ -288,11 +288,11 @@ class AudioBuffer : public AudioBufferBase<T>
 
   public:
 
-  bool resize(buffer_size_t buffer_size, channel_count_t channel_count=0) audiobuffer__noexcept override final
+  bool resize(frame_count_t frame_count, channel_count_t channel_count=0) audiobuffer__noexcept override final
   {
     // If no data set, presumably from constructor.
     if (!this->_data) {
-      if (!(buffer_size && channel_count)) {
+      if (!(frame_count && channel_count)) {
         return true;
       }
       {
@@ -313,27 +313,27 @@ class AudioBuffer : public AudioBufferBase<T>
         *(format_id_t*)&this->_data->format_id = AudioBufferBase<T>::DESCRIPTOR::FORMAT_ID;
         *(bool*)&this->_data->resizable        = true;
         this->_data->channel_count = 0;
-        this->_data->buffer_size   = 0;
+        this->_data->frame_count   = 0;
       }
     }
 
     // If both buffer size and channel count are zero, we deallocate the memory.
-    if (!(buffer_size && channel_count)) {
-      buffer_size   = 0;
+    if (!(frame_count && channel_count)) {
+      frame_count   = 0;
       channel_count = 0;
     }
     // Else retain variables which are not explicitly set.
     else {
-      buffer_size = buffer_size
-        ? buffer_size
-        : this->_data->buffer_size;
+      frame_count = frame_count
+        ? frame_count
+        : this->_data->frame_count;
       channel_count = channel_count
         ? channel_count
         : this->_data->channel_count;
     }
 
     // If the sizes are the same, we don't have to do any reallocations.
-    if (buffer_size == this->_data->buffer_size && channel_count == this->_data->channel_count) {
+    if (frame_count == this->_data->frame_count && channel_count == this->_data->channel_count) {
       return true;
     }
 
@@ -360,17 +360,17 @@ class AudioBuffer : public AudioBufferBase<T>
       }
 
       // Update metadata with new variables.
-      this->_data->buffer_size   = buffer_size;
+      this->_data->frame_count   = frame_count;
       this->_data->channel_count = channel_count;
-      this->_data->deallocate    = buffer_size ? &this->deallocate_data : nullptr;
+      this->_data->deallocate    = frame_count ? &this->deallocate_data : nullptr;
 
       // Then do the allocations, checking if the sizes are indeed set.
-      if (buffer_size && channel_count) {
+      if (frame_count && channel_count) {
         {
           ALLOCATOR_T<typename AudioBufferBase<T>::SAMPLE_T> buffer_alloc;
           using buffer_alloc_t = std::allocator_traits<decltype(buffer_alloc)>;
 
-          auto total_size = static_cast<std::size_t>(buffer_size) * channel_count;
+          auto total_size = static_cast<std::size_t>(frame_count) * channel_count;
           this->_data->buffer = buffer_alloc_t::allocate(buffer_alloc, total_size);
         }
         {

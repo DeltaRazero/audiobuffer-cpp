@@ -19,17 +19,17 @@ namespace audiobuffer {
 /// @brief Structure to pass when calling a copy command.
 struct CopyArgs {
   /// @brief How many frames to copy. A value of `0` will copy all.
-  buffer_size_t size = 0;
+  frame_count_t size = 0;
   /// @brief How many channels to copy. A value of `0` will copy all.
   channel_count_t channel_count = 0;
 
   /// @brief Offset where to start copying frames from.
-  buffer_size_t src_offset = 0;
+  frame_count_t src_offset = 0;
   /// @brief Offset where to start copying channels from.
   channel_count_t src_channel_offset = 0;
 
   /// @brief Offset where to start copying frames to.
-  buffer_size_t dst_offset = 0;
+  frame_count_t dst_offset = 0;
   /// @brief Offset where to start copying channels to.
   channel_count_t dst_channel_offset = 0;
 
@@ -71,7 +71,7 @@ class AudioBufferInterface
   ///
   /// @brief Gets the amount of frames (samples per channel) in the audio buffer.
   ///
-  virtual buffer_size_t get_buffer_size() const noexcept
+  virtual frame_count_t get_frame_count() const noexcept
   =0;
 
   ///
@@ -97,14 +97,14 @@ class AudioBufferInterface
   ///
   /// @brief Resizes contents of the audio buffer.
   ///
-  /// @param buffer_size The new amount of frames (samples per channel).
+  /// @param frame_count The new amount of frames (samples per channel).
   ///   A value of zero retains the current amount of frames.
   /// @param channel_count The new amount of channels.
   ///   A value of zero retains the current amount of channels.
   ///
   /// @return Whether the operation was successful.
   ///
-  virtual bool resize(buffer_size_t buffer_size, channel_count_t channel_count=0) audiobuffer__noexcept
+  virtual bool resize(frame_count_t frame_count, channel_count_t channel_count=0) audiobuffer__noexcept
   =0;
 
   ///

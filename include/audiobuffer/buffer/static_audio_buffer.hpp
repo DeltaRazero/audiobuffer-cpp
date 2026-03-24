@@ -21,16 +21,16 @@ namespace audiobuffer {
 ///
 /// @tparam T The sample type.
 /// @tparam CHANNEL_COUNT_V The amount of channels the audio buffer should have.
-/// @tparam BUFFER_SIZE_V The amount of frames (samples per channel) the audio buffer should have.
+/// @tparam FRAME_COUNT_V The amount of frames (samples per channel) the audio buffer should have.
 ///
-template <typename T, channel_count_t CHANNEL_COUNT_V, buffer_size_t BUFFER_SIZE_V>
+template <typename T, channel_count_t CHANNEL_COUNT_V, frame_count_t FRAME_COUNT_V>
 class StaticAudioBuffer : public AudioBufferBase<T>
 {
   // :: PRIVATE ATTRIBUTES :: //
 
   private:
     std::array<typename AudioBufferBase<T>::SAMPLE_T*, CHANNEL_COUNT_V> _channel_table;
-    std::array<typename AudioBufferBase<T>::SAMPLE_T , CHANNEL_COUNT_V*BUFFER_SIZE_V> _buffer_data;
+    std::array<typename AudioBufferBase<T>::SAMPLE_T , CHANNEL_COUNT_V*FRAME_COUNT_V> _buffer_data;
 
     // Pre-allocated data struct where we can point `this->_data` to.
     AudioBufferData _fixed_data;
@@ -49,7 +49,7 @@ class StaticAudioBuffer : public AudioBufferBase<T>
 
     // Set buffer memory location and metadata.
     this->_fixed_data.buffer      = static_cast<void*>(this->_buffer_data.data());
-    this->_fixed_data.buffer_size = BUFFER_SIZE_V;
+    this->_fixed_data.frame_count = FRAME_COUNT_V;
 
     // Reference channel table memory location and metadata, use the base class
     // method to build the channel table.
@@ -68,7 +68,7 @@ class StaticAudioBuffer : public AudioBufferBase<T>
   {
     // Clean values for extra safety.
     this->_fixed_data.buffer      = nullptr;
-    this->_fixed_data.buffer_size = 0;
+    this->_fixed_data.frame_count = 0;
     this->_fixed_data.channels      = nullptr;
     this->_fixed_data.channel_count = 0;
 
@@ -77,7 +77,7 @@ class StaticAudioBuffer : public AudioBufferBase<T>
 
   // :: INTERFACE METHODS :: //
 
-  bool resize(buffer_size_t buffer_size, channel_count_t channel_count=0) audiobuffer__noexcept override final
+  bool resize(frame_count_t frame_count, channel_count_t channel_count=0) audiobuffer__noexcept override final
   {
     // Fixed-size audio buffers can not be resized.
     #if (audiobuffer__disable_exceptions)

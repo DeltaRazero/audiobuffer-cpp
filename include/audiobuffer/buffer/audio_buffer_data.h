@@ -16,8 +16,8 @@ typedef uint32_t ab_format_id_t;
 /// @brief For defining the channel count.
 typedef uint8_t ab_channel_count_t;
 
-/// @brief For defining the buffer size.
-typedef uint32_t ab_buffer_size_t;
+/// @brief For defining the buffer size in amount of frames.
+typedef uint32_t ab_frame_count_t;
 
 // *****************************************************************************
 
@@ -32,7 +32,7 @@ struct ab_AudioBufferData
   /// Amount of channels.
   ab_channel_count_t channel_count;
   /// Amount of frames (samples per channel).
-  ab_buffer_size_t buffer_size;
+  ab_frame_count_t frame_count;
 
   /// Raw pointer to the buffer sample data.
   void* buffer;

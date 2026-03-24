@@ -19,12 +19,12 @@ namespace audiobuffer::internal {
 
 CopyArgs sanitize_copy_args(AudioBufferData& src_data, AudioBufferData& dst_data, CopyArgs& copy_args) noexcept
 {
-  copy_args.src_offset = std::min(copy_args.src_offset, src_data.buffer_size-1);
-  copy_args.dst_offset = std::min(copy_args.dst_offset, dst_data.buffer_size-1);
+  copy_args.src_offset = std::min(copy_args.src_offset, src_data.frame_count-1);
+  copy_args.dst_offset = std::min(copy_args.dst_offset, dst_data.frame_count-1);
 
   auto max_size = std::min(
-    src_data.buffer_size - copy_args.src_offset,
-    dst_data.buffer_size - copy_args.dst_offset
+    src_data.frame_count - copy_args.src_offset,
+    dst_data.frame_count - copy_args.dst_offset
   );
   copy_args.size = copy_args.size == 0
     ? max_size
@@ -79,18 +79,18 @@ bool copy_audio_buffer_data(AudioBufferData& src, AudioBufferData& dst, CopyArgs
   auto dst_channels = reinterpret_cast<DST_SAMPLE_T**>(dst.channels);
 
   // Amount of frames to pad with zeros.
-  auto pad_size = src.buffer_size < dst.buffer_size
-    ? dst.buffer_size - src.buffer_size
+  auto pad_size = src.frame_count < dst.frame_count
+    ? dst.frame_count - src.frame_count
     : 0;
   if (!copy_args.pad) {
     pad_size = 0;
   }
 
-  buffer_size_t   i;
+  frame_count_t   i;
   channel_count_t c;
 
-  buffer_size_t i_src;
-  buffer_size_t i_dst;
+  frame_count_t i_src;
+  frame_count_t i_dst;
 
   SRC_SAMPLE_T* src_channel;
   DST_SAMPLE_T* dst_channel;
@@ -234,7 +234,7 @@ bool copy_audio_buffer_data(AudioBufferData& src, AudioBufferData& dst, CopyArgs
     }
 
     // Padding if needed.
-    for (buffer_size_t i=copy_args.size; i<copy_args.size+pad_size; i++) {
+    for (frame_count_t i=copy_args.size; i<copy_args.size+pad_size; i++) {
       dst_channel[i] = DST_DESCRIPTOR::CENTER;
     }
   }

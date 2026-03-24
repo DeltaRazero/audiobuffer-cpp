@@ -22,7 +22,7 @@ typedef ab_format_id_t format_id_t;
 typedef ab_channel_count_t channel_count_t;
 
 /// @brief For defining the buffer size in amount of frames.
-typedef ab_buffer_size_t buffer_size_t;
+typedef ab_frame_count_t frame_count_t;
 
 typedef ab_AudioBufferData AudioBufferData;
 

@@ -60,7 +60,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
   AudioBufferInterface* _ab_raw;
   // We cache the last known sizes for speed and safety reasons.
   channel_count_t _ab_channel_count;
-  buffer_size_t   _ab_frame_count;
+  frame_count_t   _ab_frame_count;
 
   // We can't interact with the audio buffer provided by the user directly, but
   // we instead pump data between this intermediate buffer, which will be a
@@ -199,10 +199,10 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     auto bytes_per_read  = this->_rw_amount_bytes;
     auto frames_per_read = this->_rw_amount_frames;
 
-    buffer_size_t   i;
+    frame_count_t   i;
     channel_count_t c;
     // When using a referenced intermediate audio buffer, we can just use offsets.
-    buffer_size_t ref_offset = 0;
+    frame_count_t ref_offset = 0;
 
     std::size_t current_frame = 0;
     std::size_t current_byte  = 0;
@@ -226,7 +226,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
           : 0;
       }
 
-      std::size_t intermediate_size = this->_ab_interm.get_buffer_size();
+      std::size_t intermediate_size = this->_ab_interm.get_frame_count();
       // Must be able to contain at least one frame (sample for all channels).
       if (!intermediate_size) {
         break;
@@ -306,10 +306,10 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     auto frames_per_write = this->_rw_amount_frames;
     auto bytes_per_write  = this->_rw_amount_bytes;
 
-    buffer_size_t   i;
+    frame_count_t   i;
     channel_count_t c;
     // When using a referenced intermediate audio buffer, we can just use offsets.
-    buffer_size_t ref_offset = 0;
+    frame_count_t ref_offset = 0;
 
     std::size_t current_frame = 0;
     std::size_t current_byte  = 0;
@@ -320,7 +320,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
         bytes_per_write  = frames_per_write * this->_io_divider;
       }
 
-      std::size_t intermediate_size = this->_ab_interm.get_buffer_size();
+      std::size_t intermediate_size = this->_ab_interm.get_frame_count();
       // Must be able to contain at least one frame (sample for all channels).
       if (!intermediate_size) {
         break;
@@ -495,7 +495,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     }
 
     auto channel_count = this->_ab_raw->get_channel_count();
-    auto frame_count   = this->_ab_raw->get_buffer_size();
+    auto frame_count   = this->_ab_raw->get_frame_count();
     // No changes needed.
     if (this->_ab_channel_count == channel_count && this->_ab_frame_count == frame_count) {
       return;
@@ -514,7 +514,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
       static_cast<std::size_t>(1024*16) / this->_io_divider
     );
     this->_ab_interm.resize(
-      static_cast<buffer_size_t>(ab_interm_size),
+      static_cast<frame_count_t>(ab_interm_size),
       this->_ab_channel_count
     );
 
