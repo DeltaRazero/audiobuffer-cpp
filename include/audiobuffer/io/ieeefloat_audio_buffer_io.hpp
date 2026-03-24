@@ -26,6 +26,7 @@ namespace audiobuffer::io {
 /// @tparam FRACTION_DEPTH_V Amount of bits of the fraction part, defaults to
 ///   the fraction depth of `T`.
 /// @tparam ALIGNED_V Whether the data is byte-aligned, defaults to `false`.
+/// @tparam ENDIANNESS_V The endianness of the data, defaults to `numio::Endian::LITTLE`.
 /// @tparam ALLOCATOR_T Allocator class, defaults to `std::allocator`.
 ///
 template<
@@ -33,6 +34,7 @@ template<
   unsigned int EXPONENT_DEPTH_V=SampleDescriptor<T>::EXPONENT_DEPTH,
   unsigned int FRACTION_DEPTH_V=SampleDescriptor<T>::FRACTION_DEPTH,
   bool ALIGNED_V=false,
+  numio::Endian ENDIANNESS_V=numio::Endian::LITTLE,
   template<typename> class ALLOCATOR_T=std::allocator
 >
 class IEEEFloatAudioBufferIO : public AudioBufferIOBase<T, ALLOCATOR_T>
@@ -66,12 +68,12 @@ class IEEEFloatAudioBufferIO : public AudioBufferIOBase<T, ALLOCATOR_T>
 
   T _unpack1(std::size_t io_buffer_offset) override final
   {
-    return NUMIO_TYPE::unpack(this->_io_buffer, io_buffer_offset);
+    return NUMIO_TYPE::template unpack<ENDIANNESS_V>(this->_io_buffer, io_buffer_offset);
   }
 
   void _pack1(T& value, std::size_t io_buffer_offset) override final
   {
-    NUMIO_TYPE::pack(
+    NUMIO_TYPE::template pack<ENDIANNESS_V>(
       value,
       this->_io_buffer,
       io_buffer_offset
