@@ -179,7 +179,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     return;
   }
 
-  std::size_t read(audiobuffer::AudioBufferInterface& audio_buffer, std::size_t frames=0, std::size_t offset=0) override
+  std::size_t read(audiobuffer::AudioBufferInterface& audio_buffer, frame_count_t frames=0, frame_count_t offset=0) override
   {
     this->_set_ab(audio_buffer);
     if (!(this->_is_io_available() && this->_is_ab_available())) {
@@ -286,7 +286,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     return current_frame;
   }
 
-  std::size_t write(audiobuffer::AudioBufferInterface& audio_buffer, std::size_t frames=0, std::size_t offset=0) override
+  std::size_t write(audiobuffer::AudioBufferInterface& audio_buffer, frame_count_t frames=0, frame_count_t offset=0) override
   {
     this->_set_ab(audio_buffer);
     if (!(this->_is_io_available() && this->_is_ab_available())) {

@@ -69,7 +69,7 @@ class AudioBufferIOInterface
   /// @warning `size` and `offset` will be limited to the size and offset of the
   ///   the I/O audio buffer if the values are larger.
   ///
-  virtual std::size_t read(audiobuffer::AudioBufferInterface& audio_buffer, std::size_t frames=0, std::size_t offset=0)
+  virtual std::size_t read(audiobuffer::AudioBufferInterface& audio_buffer, frame_count_t frames=0, frame_count_t offset=0)
   =0;
 
   ///
@@ -86,7 +86,7 @@ class AudioBufferIOInterface
   /// @warning `size` and `offset` will be limited to the size and offset of the
   ///   the I/O audio buffer if the values are larger.
   ///
-  virtual std::size_t write(audiobuffer::AudioBufferInterface& audio_buffer, std::size_t frames=0, std::size_t offset=0)
+  virtual std::size_t write(audiobuffer::AudioBufferInterface& audio_buffer, frame_count_t frames=0, frame_count_t offset=0)
   =0;
 };
 
