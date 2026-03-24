@@ -52,13 +52,13 @@ class AudioBuffer : public AudioBufferBase<T>
   ///
   /// @brief Data constructor.
   ///
-  /// @param channel_count The initial amount of channels.
   /// @param frame_count The initial amount of frames.
+  /// @param channel_count The initial amount of channels.
   ///
   /// @note When either `channel_count` or `frame_count` has a value of 0, no
   ///   allocations will be done.
   ///
-  AudioBuffer(channel_count_t channel_count, frame_count_t frame_count)
+  AudioBuffer(frame_count_t frame_count, channel_count_t channel_count)
   {
     this->_data       = nullptr;
     this->_is_managed = true;

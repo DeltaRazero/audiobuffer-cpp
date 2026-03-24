@@ -153,7 +153,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
       this->_io_buffer_size = io_buffer_size;
     }
 
-    this->_update_ab_sizes();
+    this->_update_ab_meta();
     return;
   }
 
@@ -167,7 +167,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     if (!this->_is_io_available()) {
       return;
     }
-    this->_update_ab_sizes();
+    this->_update_ab_meta();
 
     // Offset seek.
     this->_stream->seekg(offset, offset_direction);
@@ -179,7 +179,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     return;
   }
 
-  std::size_t read(audiobuffer::AudioBufferInterface& audio_buffer, std::size_t size=0, std::size_t offset=0) override
+  std::size_t read(audiobuffer::AudioBufferInterface& audio_buffer, std::size_t frames=0, std::size_t offset=0) override
   {
     this->_set_ab(audio_buffer);
     if (!(this->_is_io_available() && this->_is_ab_available())) {
@@ -189,8 +189,8 @@ class AudioBufferIOBase : public AudioBufferIOInterface
       return 0;
     }
 
-    std::tie(size, offset) = this->_sanitize_size_params(size, offset);
-    if (!size) {
+    std::tie(frames, offset) = this->_sanitize_rw_params(frames, offset);
+    if (!frames) {
       return 0;
     }
 
@@ -206,10 +206,10 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
     std::size_t current_frame = 0;
     std::size_t current_byte  = 0;
-    while (current_frame < size)
+    while (current_frame < frames)
     {
-      if (current_frame + frames_per_read > size) {
-        frames_per_read = size - current_frame;
+      if (current_frame + frames_per_read > frames) {
+        frames_per_read = frames - current_frame;
         bytes_per_read  = frames_per_read * this->_io_divider;
       }
 
@@ -286,7 +286,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     return current_frame;
   }
 
-  std::size_t write(audiobuffer::AudioBufferInterface& audio_buffer, std::size_t size=0, std::size_t offset=0) override
+  std::size_t write(audiobuffer::AudioBufferInterface& audio_buffer, std::size_t frames=0, std::size_t offset=0) override
   {
     this->_set_ab(audio_buffer);
     if (!(this->_is_io_available() && this->_is_ab_available())) {
@@ -296,8 +296,8 @@ class AudioBufferIOBase : public AudioBufferIOInterface
       return 0;
     }
 
-    std::tie(size, offset) = this->_sanitize_size_params(size, offset);
-    if (!size) {
+    std::tie(frames, offset) = this->_sanitize_rw_params(frames, offset);
+    if (!frames) {
       return 0;
     }
 
@@ -313,10 +313,10 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
     std::size_t current_frame = 0;
     std::size_t current_byte  = 0;
-    while (current_frame < size)
+    while (current_frame < frames)
     {
-      if (current_frame + frames_per_write > size) {
-        frames_per_write = size - current_frame;
+      if (current_frame + frames_per_write > frames) {
+        frames_per_write = frames - current_frame;
         bytes_per_write  = frames_per_write * this->_io_divider;
       }
 
@@ -459,7 +459,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
   {
     if (!audio_buffer.has_data()) {
       this->_ab_raw = nullptr;
-      this->_update_ab_sizes();
+      this->_update_ab_meta();
     }
 
     bool reset_interm = false;
@@ -479,14 +479,14 @@ class AudioBufferIOBase : public AudioBufferIOInterface
         : audiobuffer::AudioBuffer<T, ALLOCATOR_T>(0, 0);
     }
 
-    this->_update_ab_sizes();
+    this->_update_ab_meta();
     return;
   }
 
   ///
   /// @brief Updates audio buffer metadata and intermediate buffer sizes.
   ///
-  void _update_ab_sizes()
+  void _update_ab_meta()
   {
     if (!this->_is_io_available()) {
       this->_ab_channel_count = 0;
@@ -529,7 +529,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
   ///
   /// @return Tuple with sanitized size and offset values.
   ///
-  std::tuple<std::size_t, std::size_t> _sanitize_size_params(std::size_t size, std::size_t offset)
+  std::tuple<std::size_t, std::size_t> _sanitize_rw_params(std::size_t size, std::size_t offset)
   {
     if (!this->_ab_frame_count || offset >= this->_ab_frame_count) {
       return std::make_tuple(0, 0);

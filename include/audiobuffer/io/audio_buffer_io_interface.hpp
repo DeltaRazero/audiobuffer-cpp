@@ -59,7 +59,7 @@ class AudioBufferIOInterface
   /// @brief Reads frames to the I/O audio buffer.
   ///
   /// @param audio_buffer The buffer to read to.
-  /// @param size Amount of frames (samples per channel). If not set, will be
+  /// @param frames Amount of frames (samples per channel). If not set, will be
   ///   the size of the audio buffer to read to.
   /// @param offset Offset where to write the frames to in the I/O audio buffer.
   ///   If not set, will be at the start of the audio buffer to read to.
@@ -69,14 +69,14 @@ class AudioBufferIOInterface
   /// @warning `size` and `offset` will be limited to the size and offset of the
   ///   the I/O audio buffer if the values are larger.
   ///
-  virtual std::size_t read(audiobuffer::AudioBufferInterface& audio_buffer, std::size_t size=0, std::size_t offset=0)
+  virtual std::size_t read(audiobuffer::AudioBufferInterface& audio_buffer, std::size_t frames=0, std::size_t offset=0)
   =0;
 
   ///
   /// @brief Writes frames from the I/O audio buffer.
   ///
   /// @param audio_buffer The buffer to write from.
-  /// @param size Amount of frames (samples per channel). If not set, will be
+  /// @param frames Amount of frames (samples per channel). If not set, will be
   ///   the size of the audio buffer to write from.
   /// @param offset Offset where to read the frames from in the I/O audio buffer.
   ///   If not set, will be at the start of the audio buffer to write from.
@@ -86,7 +86,7 @@ class AudioBufferIOInterface
   /// @warning `size` and `offset` will be limited to the size and offset of the
   ///   the I/O audio buffer if the values are larger.
   ///
-  virtual std::size_t write(audiobuffer::AudioBufferInterface& audio_buffer, std::size_t size=0, std::size_t offset=0)
+  virtual std::size_t write(audiobuffer::AudioBufferInterface& audio_buffer, std::size_t frames=0, std::size_t offset=0)
   =0;
 };
 
