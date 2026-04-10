@@ -4,7 +4,10 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <memory>
 #include <optional>
+#include <stdexcept>
+#include <utility>
 
 #ifndef AUDIO_BUFFER_NONTHREAD_SAFE
   #include <mutex>
@@ -80,7 +83,7 @@ class AudioBuffer : public AudioBufferBase<T>
   /// @note If you wish to copy a buffer regardless of the class type, pass the
   ///   value as pointer to deduce it as `AudioBufferInterface`.
   ///
-  AudioBuffer (const AudioBuffer& other) : AudioBuffer(&other)
+  AudioBuffer(const AudioBuffer& other) : AudioBuffer(&other)
   {}
 
   ///
@@ -88,7 +91,7 @@ class AudioBuffer : public AudioBufferBase<T>
   ///
   /// @param other The audio buffer to copy.
   ///
-  AudioBuffer (const AudioBufferInterface* other)
+  explicit AudioBuffer(const AudioBufferInterface* other)
   {
     this->_data       = nullptr;
     this->_is_managed = true;
@@ -150,7 +153,7 @@ class AudioBuffer : public AudioBufferBase<T>
   ///
   /// @param other The audio buffer to move.
   ///
-  AudioBuffer (const AudioBuffer&& other) noexcept
+  AudioBuffer(const AudioBuffer&& other) noexcept
   {
     this->_data       = other._data;
     this->_is_managed = other._is_managed;
@@ -192,6 +195,7 @@ class AudioBuffer : public AudioBufferBase<T>
     }
 
     if (this->_data->deallocate) {
+      this->_data->~AudioBufferData();
       this->_data->deallocate(this->_data);
     }
 
@@ -278,7 +282,7 @@ class AudioBuffer : public AudioBufferBase<T>
       return {};
     }
 
-    auto buffer  = AudioBuffer<typename AudioBufferBase<T>::SAMPLE_T, ALLOCATOR_T>(0,0);
+    auto buffer  = AudioBuffer<typename AudioBufferBase<T>::SAMPLE_T, ALLOCATOR_T>(0, 0);
     buffer._data = data;
     buffer._is_managed = false;
     return std::make_optional(std::move(buffer));
@@ -288,7 +292,7 @@ class AudioBuffer : public AudioBufferBase<T>
 
   public:
 
-  bool resize(frame_count_t frame_count, channel_count_t channel_count=0) audiobuffer__noexcept override final
+  bool resize(frame_count_t frame_count, channel_count_t channel_count=0) audiobuffer__noexcept final
   {
     // If no data set, presumably from constructor.
     if (!this->_data) {
@@ -304,16 +308,16 @@ class AudioBuffer : public AudioBufferBase<T>
         using adb_allocator_t = std::allocator_traits<decltype(abd_alloc)>;
 
         this->_data = adb_allocator_t::allocate(abd_alloc, sizeof(AudioBufferData));
-        // adb_allocator_t::construct(
-        //   abd_alloc, this->_data,
-        //   // Arguments.
-        //   AudioBufferBase<T>::DESCRIPTOR::FORMAT_ID,
-        //   true
-        // );
-        *(format_id_t*)&this->_data->format_id = AudioBufferBase<T>::DESCRIPTOR::FORMAT_ID;
-        *(bool*)&this->_data->resizable        = true;
-        this->_data->channel_count = 0;
-        this->_data->frame_count   = 0;
+        new (this->_data) AudioBufferData({
+          .format_id = AudioBufferBase<T>::DESCRIPTOR::FORMAT_ID,
+          .resizable = true,
+          .channel_count = 0,
+          .frame_count   = 0,
+          .buffer     = nullptr,
+          .channels   = nullptr,
+          .deallocate = nullptr,
+          .block_resize = false
+        });
       }
     }
 
@@ -384,7 +388,7 @@ class AudioBuffer : public AudioBufferBase<T>
         }
       }
 
-      // Initialize with DC center values.clear()
+      // Initialize with DC center values.
       this->clear();
     }
 

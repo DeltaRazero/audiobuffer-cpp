@@ -7,6 +7,7 @@
 // *****************************************************************************
 
 #include "./audiobuffer/descriptor.hpp"
+#include "./audiobuffer/sample_type.hpp"
 
 #include "./audiobuffer/buffer/audio_buffer_interface.hpp"
 #include "./audiobuffer/buffer/audio_buffer.hpp"

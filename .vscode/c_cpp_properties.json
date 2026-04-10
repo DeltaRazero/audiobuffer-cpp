@@ -4,27 +4,9 @@
             "name": "Linux",
             "includePath": [
                 "${default}",
-                "${workspaceFolder}/include",
-                "${workspaceFolder}/third-party/numio-cpp/include",
-                "${workspaceFolder}/build/_deps/googletest-src/googletest/include",
-                "${workspaceFolder}/build/_deps/googletest-src/googlemock/include"
+                "${workspaceFolder}/include"
             ],
-            "defines": [],
-            "cppStandard": "c++17"
-        },
-        {
-            "name": "Clang",
-            "includePath": [
-                "${default}",
-                "${workspaceFolder}/include",
-                "${workspaceFolder}/third-party/numio-cpp/include",
-                "${workspaceFolder}/build/_deps/googletest-src/googletest/include",
-                "${workspaceFolder}/build/_deps/googletest-src/googlemock/include"
-            ],
-            "defines": [],
-            "compilerPath": "/usr/bin/clang",
-            "intelliSenseMode": "linux-clang-x64",
-            "cStandard": "c11",
+            "cStandard": "c17",
             "cppStandard": "c++17"
         }
     ],

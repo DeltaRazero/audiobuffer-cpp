@@ -7,7 +7,7 @@
 #include <tuple>
 #include <memory>
 
-#include "../../../third-party/numio-cpp/include/numio.hpp"
+#include <numio.hpp>
 
 #include "./audio_buffer_io_base.hpp"
 
@@ -55,7 +55,7 @@ class IntegerAudioBufferIO : public AudioBufferIOBase<T, ALLOCATOR_T>
     std::size_t io_buffer_size=IntegerAudioBufferIO::DEFAULT_IO_BUFFER_SIZE
   )
     : AudioBufferIOBase<T, ALLOCATOR_T>(
-        NUMIO_TYPE::N_IO_BYTES,
+        NUMIO_TYPE::AMOUNT_IO_BYTES,
         stream,
         stream_channel_count,
         io_buffer_size
@@ -64,7 +64,7 @@ class IntegerAudioBufferIO : public AudioBufferIOBase<T, ALLOCATOR_T>
 
   protected:
 
-  T _unpack1(std::size_t io_buffer_offset) override final
+  T _unpack1(std::size_t io_buffer_offset) final
   {
     if constexpr (SAME_DEPTH) {
       return NUMIO_TYPE::template unpack<ENDIANNESS_V>(this->_io_buffer, io_buffer_offset);
@@ -76,7 +76,7 @@ class IntegerAudioBufferIO : public AudioBufferIOBase<T, ALLOCATOR_T>
     }
   }
 
-  void _pack1(T& value, std::size_t io_buffer_offset) override final
+  void _pack1(T& value, std::size_t io_buffer_offset) final
   {
     if constexpr (SAME_DEPTH)
     {

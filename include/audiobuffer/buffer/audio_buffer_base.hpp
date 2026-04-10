@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <stdexcept>
 
 #include "../internal/macro.hpp"
 #include "../internal/copy.hpp"
@@ -66,7 +67,7 @@ class AudioBufferBase : public AudioBufferInterface
 
   public:
 
-  bool has_data() const noexcept override final
+  bool has_data() const noexcept final
   {
     if (!this->_data) {
       return false;
@@ -74,22 +75,22 @@ class AudioBufferBase : public AudioBufferInterface
     return static_cast<bool>(this->_data->buffer) && static_cast<bool>(this->_data->channels);
   }
 
-  AudioBufferData* get_data() const noexcept override final
+  AudioBufferData* get_data() const noexcept final
   { return this->_data; }
 
-  format_id_t get_format_id() const noexcept override final
+  format_id_t get_format_id() const noexcept final
   { return this->has_data() ? this->_data->format_id : 0; }
 
-  frame_count_t get_frame_count() const noexcept override final
+  frame_count_t get_frame_count() const noexcept final
   { return this->has_data() ? this->_data->frame_count : 0; }
 
-  channel_count_t get_channel_count() const noexcept override final
+  channel_count_t get_channel_count() const noexcept final
   { return this->has_data() ? this->_data->channel_count : 0; }
 
-  bool is_reference() const noexcept override final
+  bool is_reference() const noexcept final
   { return !this->_is_managed; }
 
-  void clear() noexcept override final
+  void clear() noexcept final
   {
     for (channel_count_t c=0; c<this->get_channel_count(); c++) {
       auto channel = this->get_channel(c);
@@ -100,7 +101,7 @@ class AudioBufferBase : public AudioBufferInterface
     return;
   }
 
-  bool duplicate_channel(channel_count_t src_channel_index, channel_count_t dst_channel_index) noexcept override final
+  bool duplicate_channel(channel_count_t src_channel_index, channel_count_t dst_channel_index) noexcept final
   {
     // Do nothing if the channels are the same
     if (src_channel_index == dst_channel_index) {
@@ -121,7 +122,7 @@ class AudioBufferBase : public AudioBufferInterface
     return true;
   }
 
-  bool copy_from(AudioBufferInterface* src, CopyArgs args=COPY_ARGS_DEFAULT) audiobuffer__noexcept override final
+  bool copy_from(AudioBufferInterface* src, CopyArgs args=COPY_ARGS_DEFAULT) audiobuffer__noexcept final
   {
     // Check if both buffers point to valid audio buffer data instances.
     if (!src) {
@@ -138,12 +139,12 @@ class AudioBufferBase : public AudioBufferInterface
       #else
         throw std::runtime_error("Cannot copy audio buffer: the audio type is unsupported.");
       #endif
-    };
+    }
 
     return true;
   }
 
-  bool copy_to(AudioBufferInterface* dst, CopyArgs args=COPY_ARGS_DEFAULT) audiobuffer__noexcept override final
+  bool copy_to(AudioBufferInterface* dst, CopyArgs args=COPY_ARGS_DEFAULT) audiobuffer__noexcept final
   {
     // Check if both buffers point to valid audio buffer data instances.
     if (!dst) {
@@ -160,7 +161,7 @@ class AudioBufferBase : public AudioBufferInterface
       #else
         throw std::runtime_error("Cannot copy audio buffer: the audio type is unsupported.");
       #endif
-    };
+    }
 
     return true;
   }
@@ -198,6 +199,13 @@ class AudioBufferBase : public AudioBufferInterface
 
   // TODO: Interleaved iterator + non interleaved iterator
 
+  public:
+
+  // struct InterleavedIterator
+  // {
+
+  // };
+
   // :: PROTECTED METHODS :: //
 
   ///
@@ -209,7 +217,7 @@ class AudioBufferBase : public AudioBufferInterface
   ///
   /// @return Whether a copy operation was carried out.
   ///
-  virtual bool _on_copy_from(AudioBufferInterface& src, CopyArgs& args) audiobuffer__noexcept
+  virtual bool _on_copy_from(const AudioBufferInterface& src, CopyArgs& args) audiobuffer__noexcept
   {
     bool is_copied = false;
     #ifndef audiobuffer__no_copy_defaults
@@ -229,7 +237,7 @@ class AudioBufferBase : public AudioBufferInterface
           FORMAT_CASE(std::uint16_t);
           FORMAT_CASE(std::uint32_t);
         #endif
-        FORMAT_CASE(float );
+        FORMAT_CASE(float);
         FORMAT_CASE(double);
 
         default:
@@ -249,7 +257,7 @@ class AudioBufferBase : public AudioBufferInterface
   ///
   /// @return Whether a copy operation was carried out.
   ///
-  virtual bool _on_copy_to(AudioBufferInterface& dst, CopyArgs& args) audiobuffer__noexcept
+  virtual bool _on_copy_to(const AudioBufferInterface& dst, CopyArgs& args) audiobuffer__noexcept
   {
     bool is_copied = false;
     #ifndef audiobuffer__no_copy_defaults
@@ -269,7 +277,7 @@ class AudioBufferBase : public AudioBufferInterface
           FORMAT_CASE(std::uint16_t);
           FORMAT_CASE(std::uint32_t);
         #endif
-        FORMAT_CASE(float );
+        FORMAT_CASE(float);
         FORMAT_CASE(double);
 
         default:
@@ -297,7 +305,7 @@ class AudioBufferBase : public AudioBufferInterface
     auto frame_count   = this->_data->frame_count;
 
     for (channel_count_t c=0; c<channel_count; c++) {
-      this->_data->channels[c] = &reinterpret_cast<SAMPLE_T*>(this->_data->buffer)[frame_count*c];
+      this->_data->channels[c] = &(reinterpret_cast<SAMPLE_T*>(this->_data->buffer)[frame_count*c]);
     }
     return;
   }

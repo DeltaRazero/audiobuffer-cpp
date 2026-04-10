@@ -20,7 +20,7 @@ namespace audiobuffer::io {
 ///
 class AudioBufferIOInterface
 {
-  public: virtual ~AudioBufferIOInterface() {};
+  public: virtual ~AudioBufferIOInterface() {}
 
   ///
   /// @brief Sets the stream to read from/write to.

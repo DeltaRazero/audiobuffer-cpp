@@ -5,6 +5,7 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <stdexcept>
 
 #include "../internal/macro.hpp"
 
@@ -20,10 +21,10 @@ namespace audiobuffer {
 /// @brief An audio buffer container for storing a fixed size sequence of channels and samples.
 ///
 /// @tparam T The sample type.
-/// @tparam CHANNEL_COUNT_V The amount of channels the audio buffer should have.
 /// @tparam FRAME_COUNT_V The amount of frames (samples per channel) the audio buffer should have.
+/// @tparam CHANNEL_COUNT_V The amount of channels the audio buffer should have.
 ///
-template <typename T, channel_count_t CHANNEL_COUNT_V, frame_count_t FRAME_COUNT_V>
+template <typename T, frame_count_t FRAME_COUNT_V, channel_count_t CHANNEL_COUNT_V>
 class StaticAudioBuffer : public AudioBufferBase<T>
 {
   // :: PRIVATE ATTRIBUTES :: //
@@ -40,21 +41,21 @@ class StaticAudioBuffer : public AudioBufferBase<T>
   public:
 
   StaticAudioBuffer() :
-    _fixed_data({ .format_id = AudioBufferBase<T>::DESCRIPTOR::FORMAT_ID, .resizable = false })
+    _fixed_data({
+      .format_id = AudioBufferBase<T>::DESCRIPTOR::FORMAT_ID,
+      .resizable = false,
+      .channel_count = CHANNEL_COUNT_V,
+      .frame_count   = FRAME_COUNT_V,
+      .buffer     = static_cast<void*>(this->_buffer_data.data()),
+      .channels   = reinterpret_cast<void**>(this->_channel_table.data()),
+      .deallocate = nullptr,
+      .block_resize = false
+    })
   {
     this->_is_managed = false;
 
     // Reference the auto-managed data to the data pointer of the base class.
     this->_data = &this->_fixed_data;
-
-    // Set buffer memory location and metadata.
-    this->_fixed_data.buffer      = static_cast<void*>(this->_buffer_data.data());
-    this->_fixed_data.frame_count = FRAME_COUNT_V;
-
-    // Reference channel table memory location and metadata, use the base class
-    // method to build the channel table.
-    this->_fixed_data.channels = reinterpret_cast<void**>(this->_channel_table.data());
-    this->_fixed_data.channel_count = CHANNEL_COUNT_V;
     this->_build_channel_table();
 
     // Since the data is not managed dynamically, there is no deallocator.
@@ -77,8 +78,12 @@ class StaticAudioBuffer : public AudioBufferBase<T>
 
   // :: INTERFACE METHODS :: //
 
-  bool resize(frame_count_t frame_count, channel_count_t channel_count=0) audiobuffer__noexcept override final
+  bool resize(frame_count_t frame_count, channel_count_t channel_count=0) audiobuffer__noexcept final
   {
+    // Unused parameters.
+    (void)frame_count;
+    (void)channel_count;
+
     // Fixed-size audio buffers can not be resized.
     #if (audiobuffer__disable_exceptions)
       return false;

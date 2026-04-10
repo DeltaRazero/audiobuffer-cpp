@@ -2,10 +2,13 @@
 
 // *****************************************************************************
 
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
-#include <tuple>
+#include <limits>
 #include <memory>
+#include <tuple>
+#include <utility>
 
 #include "../buffer/audio_buffer_interface.hpp"
 #include "../buffer/audio_buffer.hpp"
@@ -47,7 +50,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
   // sizeof_io_sample * stream_channel_count
   int _io_divider;
 
-  // Amount of bytes and frames to read per full rw operation.
+  // Amount of bytes and frames to read per full R/W operation.
   std::size_t _rw_amount_bytes;
   std::size_t _rw_amount_frames;
 
@@ -111,7 +114,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
   // :: INTERFACE METHODS :: //
 
-  void set_stream(std::iostream& stream, channel_count_t stream_channel_count) override final
+  void set_stream(std::iostream& stream, channel_count_t stream_channel_count) final
   {
     this->_stream = &stream;
     this->_stream_channel_count = stream_channel_count;
@@ -125,7 +128,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     return;
   }
 
-  void set_io_buffer_size(std::size_t io_buffer_size) override final
+  void set_io_buffer_size(std::size_t io_buffer_size) final
   {
     // Ensure minimum size to functionally operate.
     io_buffer_size = std::max(io_buffer_size, static_cast<std::size_t>(this->_io_divider));
@@ -140,7 +143,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
       return;
     }
 
-    // Whole division so we ensure we never have incomplete frames to rw.
+    // Whole division so we ensure we never have incomplete frames to R/W.
     this->_rw_amount_bytes  =         io_buffer_size / this->_io_divider * this->_io_divider;
     this->_rw_amount_frames = this->_rw_amount_bytes / this->_io_divider;
 
@@ -162,7 +165,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     std::ios_base::seekdir direction=std::ios::beg,
     std::streamoff offset=0,
     std::ios_base::seekdir offset_direction=std::ios::beg
-  ) override final
+  ) final
   {
     if (!this->_is_io_available()) {
       return;
@@ -264,16 +267,14 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
         // Copy the intermediate data to the user audio buffer.
         if (!this->_ab_interm.is_reference()) {
-          copy_args.size       = intermediate_size;
-          copy_args.dst_offset = current_frame;
+          copy_args.frame_count = intermediate_size;
+          copy_args.dst_offset  = current_frame;
           this->_ab_interm.copy_to(this->_ab_raw, copy_args);
         }
 
         current_frame += intermediate_size;
         current_byte  += intermediate_size * this->_io_divider;
-        ref_offset = this->_ab_interm.is_reference()
-          ? current_frame
-          : 0;
+        ref_offset = current_frame * this->_ab_interm.is_reference();
       }
 
       if (eof) {
@@ -338,8 +339,8 @@ class AudioBufferIOBase : public AudioBufferIOInterface
 
         if (!this->_ab_interm.is_reference()) {
           // Copy the intermediate data from the user audio buffer.
-          copy_args.size       = intermediate_size;
-          copy_args.src_offset = current_frame;
+          copy_args.frame_count = intermediate_size;
+          copy_args.src_offset  = current_frame;
           this->_ab_interm.copy_from(this->_ab_raw, copy_args);
         }
 
@@ -365,9 +366,7 @@ class AudioBufferIOBase : public AudioBufferIOInterface
         }
         current_frame += intermediate_size;
         current_byte  += intermediate_size * this->_io_divider;
-        ref_offset = this->_ab_interm.is_reference()
-          ? current_frame
-          : 0;
+        ref_offset = current_frame * this->_ab_interm.is_reference();
       }
 
       // Get current position to check how many bytes we've been able to write.
@@ -468,6 +467,12 @@ class AudioBufferIOBase : public AudioBufferIOInterface
     }
     else if (this->_ab_raw->get_format_id() != audio_buffer.get_format_id()) {
       reset_interm = true;
+    }
+    else if (this->_ab_interm.is_reference()) {
+      auto interm_data = this->_ab_interm.get_data();
+      if (interm_data == nullptr || interm_data != audio_buffer.get_data()) {
+        reset_interm = true;
+      }
     }
     if (reset_interm) {
       this->_ab_raw = &audio_buffer;

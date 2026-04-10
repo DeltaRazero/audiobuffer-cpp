@@ -1,28 +1,43 @@
-include(FetchContent)
+include(${AUDIOBUFFER_REPO_DIR}/.cpm/CPM.cmake)
 
-# Download GoogleTest.
-FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/refs/heads/main.zip
+# ******************************************************************************
+
+CPMAddPackage(NAME googletest
+  GITHUB_REPOSITORY
+    google/googletest
+  GIT_TAG
+    v1.17.x
+  OPTIONS
+    "INSTALL_GTEST OFF"
+    # For Windows: prevent GTest from overriding the compiler/linker settings.
+    "gtest_force_shared_crt"
 )
 
-# For Windows: prevent GTest from overriding the compiler/linker settings.
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+# ******************************************************************************
 
 file(GLOB SOURCE_FILES
-  # ./**/*.cpp
-  ./values/scale_test.cpp
+  ./src/values/scale_test.cpp
 )
 
-set(CMAKE_CXX_FLAGS "-O3")
-
-# Define the test executable.
+# Define the unit tests executable.
 add_executable(unit_tests
   ${SOURCE_FILES}
 )
 
-find_package(OpenMP)
+add_compile_definitions(
+  NUMIO_ENABLE_EXCEPTIONS
+  audiobuffer__enable_nonstd_unsigned
+)
+add_compile_options(
+  -O3
+  -pedantic
+  -Wall
+  -Wextra
+  -Werror
+  -Wno-unused-command-line-argument
+)
+
+find_package(OpenMP REQUIRED)
 
 # Link to the library and GTest.
 # GTest provides 'gtest_main' which includes a default main() function.

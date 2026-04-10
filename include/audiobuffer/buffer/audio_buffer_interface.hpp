@@ -19,7 +19,7 @@ namespace audiobuffer {
 /// @brief Structure to pass when calling a copy command.
 struct CopyArgs {
   /// @brief How many frames to copy. A value of `0` will copy all.
-  frame_count_t size = 0;
+  frame_count_t frame_count = 0;
   /// @brief How many channels to copy. A value of `0` will copy all.
   channel_count_t channel_count = 0;
 
@@ -46,7 +46,7 @@ static const CopyArgs COPY_ARGS_DEFAULT = CopyArgs();
 ///
 class AudioBufferInterface
 {
-  public: virtual ~AudioBufferInterface() {};
+  public: virtual ~AudioBufferInterface() {}
 
   ///
   /// @brief Checks whether the audio data is not null and has a non-zero size.
@@ -81,7 +81,7 @@ class AudioBufferInterface
   =0;
 
   ///
-  /// @brief Checks whether the audio buffer is a reference and it not managed.
+  /// @brief Checks whether the audio buffer is a reference and is not managed.
   ///
   virtual bool is_reference() const noexcept
   =0;

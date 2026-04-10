@@ -2,8 +2,10 @@
 
 // *****************************************************************************
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <stdexcept>
 
 #include "../buffer/audio_buffer_interface.hpp"
 #include "../descriptor.hpp"
@@ -17,19 +19,18 @@ namespace audiobuffer::internal {
 
 // *****************************************************************************
 
-CopyArgs sanitize_copy_args(AudioBufferData& src_data, AudioBufferData& dst_data, CopyArgs& copy_args) noexcept
+CopyArgs sanitize_copy_args(const AudioBufferData& src_data, const AudioBufferData& dst_data, CopyArgs& copy_args) noexcept
 {
   copy_args.src_offset = std::min(copy_args.src_offset, src_data.frame_count-1);
   copy_args.dst_offset = std::min(copy_args.dst_offset, dst_data.frame_count-1);
 
-  auto max_size = std::min(
+  auto max_frames = std::min(
     src_data.frame_count - copy_args.src_offset,
     dst_data.frame_count - copy_args.dst_offset
   );
-  copy_args.size = copy_args.size == 0
-    ? max_size
-    : std::min(copy_args.size, max_size)
-  ;
+  copy_args.frame_count = copy_args.frame_count == 0
+    ? max_frames
+    : std::min(copy_args.frame_count, max_frames);
 
   copy_args.src_channel_offset = std::min<channel_count_t>(copy_args.src_channel_offset, src_data.channel_count-1);
   copy_args.dst_channel_offset = std::min<channel_count_t>(copy_args.dst_channel_offset, dst_data.channel_count-1);
@@ -40,8 +41,7 @@ CopyArgs sanitize_copy_args(AudioBufferData& src_data, AudioBufferData& dst_data
   );
   copy_args.channel_count = copy_args.channel_count == 0
     ? max_channel_count
-    : std::min(copy_args.channel_count, max_channel_count)
-  ;
+    : std::min(copy_args.channel_count, max_channel_count);
 
   return copy_args;
 }
@@ -60,7 +60,7 @@ CopyArgs sanitize_copy_args(AudioBufferData& src_data, AudioBufferData& dst_data
 /// @return Whether the operation was successful.
 ///
 template <typename SRC_SAMPLE_T, typename DST_SAMPLE_T>
-bool copy_audio_buffer_data(AudioBufferData& src, AudioBufferData& dst, CopyArgs& copy_args) audiobuffer__noexcept
+bool copy_audio_buffer_data(const AudioBufferData& src, const AudioBufferData& dst, CopyArgs& copy_args) audiobuffer__noexcept
 {
   copy_args = sanitize_copy_args(src, dst, copy_args);
 
@@ -100,7 +100,7 @@ bool copy_audio_buffer_data(AudioBufferData& src, AudioBufferData& dst, CopyArgs
     src_channel = src_channels[c + copy_args.src_channel_offset];
     dst_channel = dst_channels[c + copy_args.dst_channel_offset];
 
-    for (i=0; i<copy_args.size; i++)
+    for (i=0; i<copy_args.frame_count; i++)
     {
       i_src = i + copy_args.src_offset;
       i_dst = i + copy_args.dst_offset;
@@ -128,36 +128,18 @@ bool copy_audio_buffer_data(AudioBufferData& src, AudioBufferData& dst, CopyArgs
           if constexpr (DST_BITS > SRC_BITS) {
             dst_channel[i_dst] = (static_cast<DST_SAMPLE_T>(src_channel[i_src]) << SHIFT_AMOUNT);
 
-            // Range correction: positive range has less values than negative.
+            // Range correction; positive range has less values than negative.
             if (src_channel[i_src] > SRC_DESCRIPTOR::CENTER) {
-              constexpr int POS_CORRECTION_SHIFTS = []() {
-                int shifts = (DST_BITS / SRC_BITS) - 1;
-                if (shifts < 0) {
-                  shifts = 0;
-                }
-                return shifts;
-              }();
-              // FIXME: There should be a way to spread out offset incrementally so
-              //   the values map correctly. Haven't found the exact pattern when
-              //   more values should be added yet. For the time being this only
-              //   adds miniscule offset (at most 0.003%).
-              constexpr int POS_POSTFIX = []() {
-                int add = (1 << POS_CORRECTION_SHIFTS) - 1;
-                if (add <= 0) {
-                  add = 1;
-                }
-                return add;
-              }();
+              constexpr int AMOUNT_CORRECTION_SHIFTS = (static_cast<float>(DST_BITS) / SRC_BITS) + 0.5;
 
-              DST_SAMPLE_T pre_shifted = static_cast<DST_SAMPLE_T>(src_channel[i_dst]);
-              if constexpr (!SRC_DESCRIPTOR::IS_SIGNED) {
-                pre_shifted -= SRC_DESCRIPTOR::CENTER;
+              DST_SAMPLE_T pre_backshifted = dst_channel[i_dst];
+              if constexpr (!DST_DESCRIPTOR::IS_SIGNED) {
+                pre_backshifted -= DST_DESCRIPTOR::CENTER;
               }
 
-              for (int i=0; i<POS_CORRECTION_SHIFTS; i++) {
-                dst_channel[i_dst] += (pre_shifted << POS_CORRECTION_SHIFTS) << (7 * i);
+              for (int i=0; i<AMOUNT_CORRECTION_SHIFTS; i++) {
+                dst_channel[i_dst] |= pre_backshifted >> ((SRC_BITS - 1) * (i + 1));
               }
-              dst_channel[i_dst] |= POS_POSTFIX;
             }
           }
           // Bitshift right; shift first, then cast to target type.
@@ -234,7 +216,7 @@ bool copy_audio_buffer_data(AudioBufferData& src, AudioBufferData& dst, CopyArgs
     }
 
     // Padding if needed.
-    for (frame_count_t i=copy_args.size; i<copy_args.size+pad_size; i++) {
+    for (frame_count_t i=copy_args.frame_count; i<copy_args.frame_count+pad_size; i++) {
       dst_channel[i] = DST_DESCRIPTOR::CENTER;
     }
   }

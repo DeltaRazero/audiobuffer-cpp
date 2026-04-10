@@ -94,8 +94,8 @@ struct SampleDescriptor<SAMPLE_T, std::enable_if_t<std::is_floating_point_v<SAMP
 
   static constexpr std::uint_fast32_t FORMAT_ID = (std::uint_fast32_t(TYPE) << 8) + BIT_DEPTH;
 
-  static constexpr sample_t MAX    = sample_t( 1.0);
-  static constexpr sample_t CENTER = sample_t( 0.0);
+  static constexpr sample_t MAX    = sample_t(+1.0);
+  static constexpr sample_t CENTER = sample_t(+0.0);
   static constexpr sample_t MIN    = sample_t(-1.0);
 };
 
